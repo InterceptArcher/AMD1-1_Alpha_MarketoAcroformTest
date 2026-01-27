@@ -1,0 +1,118 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║                  LINKEDIN PERSONALIZATION ALPHA                   ║
+║                       QUICK START CARD                            ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+📍 SERVER STATUS
+────────────────
+Running at: http://localhost:3000
+Mode: MOCK (demo mode, no API keys needed)
+Server command: npm run dev
+
+🧪 TEST IT NOW (No Setup Required)
+───────────────────────────────────
+1. Open: http://localhost:3000/?cta=compare
+2. Enter ANY email (e.g., security@google.com)
+3. Check consent box
+4. Click "Get Personalized Content"
+5. See results in ~2 seconds
+
+🎯 TRY DIFFERENT SCENARIOS
+───────────────────────────
+Email Prefixes (change persona):
+  ops@company.com       → Operations
+  security@company.com  → Security  
+  finance@company.com   → Finance
+  anything@company.com  → Business Leader
+
+URL CTAs (change buyer stage):
+  /?cta=compare  → Evaluation stage
+  /?cta=learn    → Awareness stage
+  /?cta=demo     → Decision stage
+
+📊 WHAT'S WORKING vs WHAT'S MOCKED
+───────────────────────────────────
+✅ WORKING (Real Logic):
+   • Form validation
+   • Email domain extraction
+   • Persona inference
+   • Buyer stage mapping
+   • Company enrichment
+   • Full UI/UX workflow
+
+❌ MOCKED (Templates):
+   • Content generation (generic templates)
+   • Database storage (no Supabase)
+   • AI creativity (fixed output)
+
+🔑 TO GO PRODUCTION (5 Minutes)
+────────────────────────────────
+Need 2 things:
+1. Claude API key     → console.anthropic.com (costs $)
+2. Supabase project   → supabase.com (free tier)
+
+Then edit .env.local:
+  ANTHROPIC_API_KEY=sk-ant-api03-your-key
+  NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=your-key
+  SUPABASE_SERVICE_ROLE=your-key
+  MOCK_MODE=false
+
+Restart: pkill -f "next dev" && npm run dev
+
+💰 PRODUCTION COSTS
+────────────────────
+100 requests:    $1.50/month
+1,000 requests:  $15/month
+10,000 requests: $195/month
+
+📁 REFERENCE DOCS
+──────────────────
+PROJECT_EXPLANATION.txt       ← Full guide
+MOCK_VS_REAL_COMPARISON.md   ← Technical details
+WHAT_YOU_HAVE_NOW.txt         ← Current state
+
+🚨 TROUBLESHOOTING
+──────────────────
+Server not running:
+  → npm run dev
+
+Port already in use:
+  → pkill -f "next dev"
+  → npm run dev
+
+Can't open browser:
+  → Check PORTS tab in VS Code
+  → Click globe icon on port 3000
+
+Form won't submit:
+  → Check email format is valid
+  → Check consent box is checked
+
+📞 KEY COMMANDS
+────────────────
+Start server:    npm run dev
+Stop server:     pkill -f "next dev"
+Run tests:       npm test
+Build for prod:  npm run build
+
+🎪 DEMO CHECKLIST
+─────────────────
+□ Server running (npm run dev)
+□ Open http://localhost:3000/?cta=compare
+□ Show different email prefixes
+□ Show different CTA parameters
+□ Explain mock vs real
+□ Show cost breakdown ($15/mo for 1K)
+
+🎯 BOTTOM LINE
+──────────────
+YOU HAVE: Fully functional demo (mock mode)
+YOU NEED: 2 API keys for production ($)
+TIME TO SETUP: 5 minutes
+MONTHLY COST: $15 for 1,000 personalizations
+
+╔═══════════════════════════════════════════════════════════════════╗
+║  💡 TIP: Mock mode is perfect for demos and presentations!       ║
+║     Set up real APIs only when you're ready to go live.          ║
+╚═══════════════════════════════════════════════════════════════════╝

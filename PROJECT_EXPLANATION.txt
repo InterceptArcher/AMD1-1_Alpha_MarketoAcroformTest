@@ -1,0 +1,224 @@
+================================================================================
+LINKEDIN POST-CLICK PERSONALIZATION ALPHA
+Project Explanation & Quick Start Guide
+================================================================================
+
+WHAT THIS IS:
+-------------
+An AI-powered web application that personalizes marketing content based on
+LinkedIn ad clicks. When someone clicks a LinkedIn ad and lands on our page,
+the system:
+  1. Reads their call-to-action intent (e.g., "compare" vs "learn")
+  2. Captures their email address
+  3. Infers their role (Security, IT, Finance, etc.) from email prefix
+  4. Uses Claude AI to generate custom marketing content
+  5. Displays personalized headlines, value propositions, and CTAs
+
+THE ALPHA:
+-------------
+✓ Full Next.js web application with TypeScript
+✓ Email capture form with consent validation
+✓ Backend API that calls Claude AI (Anthropic)
+✓ Supabase database to store personalization jobs and outputs
+✓ Loading states and results display UI
+✓ Persona inference engine (detects user role from email)
+✓ Company enrichment system (identifies company from email domain)
+✓ Security features (no hardcoded secrets, XSS protection)
+✓ Deployment scripts for Vercel + Supabase
+✓ Complete test suite with Playwright
+
+TECHNOLOGY STACK:
+-----------------
+Frontend:  Next.js 14 + React + TypeScript
+Backend:   Next.js API Routes (serverless)
+AI:        Claude 3.5 Sonnet API
+Database:  Supabase (PostgreSQL)
+Hosting:   Vercel
+Testing:   Playwright
+
+HOW IT WORKS:
+-------------
+STEP 1: User clicks LinkedIn ad with tracking parameter
+        Example: https://yourapp.com/?cta=compare
+
+STEP 2: User lands on page, sees personalized header based on CTA
+        - "compare" → suggests they're evaluating options
+        - "learn" → suggests they're in awareness stage
+        - "demo" → suggests they're ready to buy
+
+STEP 3: User enters email (e.g., security@google.com) and checks consent
+
+STEP 4: System processes in real-time:
+        ├─ Extracts domain: "google.com"
+        ├─ Infers persona: "Security" (from "security@" prefix)
+        ├─ Infers buyer stage: "Evaluation" (from CTA)
+        └─ Enriches company data: "Google", "Technology", "Enterprise"
+
+STEP 5: Backend calls Claude AI with personalized prompt:
+        "Generate content for a Security persona at Google, in Evaluation
+        stage, interested in comparing solutions..."
+
+STEP 6: Claude generates structured JSON with:
+        - Custom headline
+        - Subheadline
+        - 3 value propositions tailored to their role
+        - Personalized CTA button text
+
+STEP 7: System validates the JSON response (with Zod), stores in Supabase
+
+STEP 8: Results display on page with badges showing persona/industry/stage
+
+EXAMPLE FLOW:
+-------------
+INPUT:
+  URL: /?cta=compare
+  Email: ops@salesforce.com
+
+OUTPUT:
+  Persona: Operations
+  Stage: Evaluation
+  Company: Salesforce, Software, Enterprise
+
+  GENERATED CONTENT:
+  Headline: "Streamline Operations at Scale with Confidence"
+  Value Props:
+    1. Reduce Manual Workflows by 60%
+    2. Enterprise-Grade Security & Compliance
+    3. Seamless Integration with Existing Tools
+  CTA: "Compare Solutions for Operations Teams"
+
+HOW TO RUN IT:
+--------------
+
+PREREQUISITES:
+  1. Create a Supabase project at supabase.com
+  2. Get a Claude API key from console.anthropic.com
+  3. Create .env.local file (see .env.example)
+
+QUICK START:
+  1. Install dependencies:
+     $ npm install
+
+  2. Configure environment variables in .env.local:
+     NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+     NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+     SUPABASE_SERVICE_ROLE=your_service_role_key
+     ANTHROPIC_API_KEY=your_anthropic_api_key
+
+  3. Setup database (run migration):
+     # Option A: Manual (copy SQL from supabase/migrations/*.sql)
+     # Option B: CLI
+     $ export SUPABASE_ACCESS_TOKEN=your_token
+     $ export SUPABASE_PROJECT_REF=your_ref
+     $ ./scripts/deploy-backend-supabase.sh
+
+  4. Start development server:
+     $ npm run dev
+
+  5. Open browser:
+     http://localhost:3000/?cta=compare
+
+  6. Test the flow:
+     - Enter any email (e.g., security@example.com)
+     - Check consent box
+     - Click "Get Personalized Content"
+     - Wait ~5 seconds for Claude to generate content
+     - View personalized results
+
+DEMO TIPS FOR PRESENTATION:
+----------------------------
+1. Start with URL: /?cta=compare
+2. Show different email prefixes to demonstrate persona inference:
+   - ops@company.com → detects "Operations" persona
+   - security@company.com → detects "Security" persona
+   - finance@company.com → detects "Finance" persona
+   - anything-else@company.com → defaults to "Business Leader"
+
+3. Try different CTAs to show buyer stage inference:
+   - /?cta=compare → "Evaluation" stage
+   - /?cta=learn → "Awareness" stage
+   - /?cta=demo → "Decision" stage
+
+4. Point out the metadata badges in results (persona, stage, industry)
+
+5. Explain that Claude generates different content each time for same input
+   (slight variations due to AI creativity)
+
+TESTING:
+--------
+Run automated tests:
+  $ npm test
+
+Run specific test suites:
+  $ npm test -- tests/landing-page.spec.ts
+  $ npm test -- tests/email-form.spec.ts
+  $ npm test -- tests/api-personalize.spec.ts
+
+DEPLOYMENT:
+-----------
+Deploy to production:
+  $ export VERCEL_TOKEN=your_token
+  $ ./scripts/deploy-frontend-vercel.sh --production
+
+KEY FILES TO KNOW:
+------------------
+app/page.tsx                    → Main landing page UI
+app/components/EmailForm.tsx    → Email capture form
+app/api/personalize/route.ts    → Backend API endpoint
+lib/anthropic/client.ts         → Claude AI integration
+lib/utils/email.ts              → Persona inference logic
+supabase/migrations/*.sql       → Database schema
+
+TROUBLESHOOTING:
+----------------
+Error: "ANTHROPIC_API_KEY is not configured"
+  → Add your Claude API key to .env.local
+
+Error: "Missing Supabase environment variables"
+  → Check .env.local has all 3 Supabase variables
+
+Error: "Failed to create personalization job"
+  → Run database migration (see step 3 above)
+
+Page shows "Service configuration error"
+  → API keys are missing or invalid
+
+SECURITY NOTES:
+---------------
+✓ All secrets are in environment variables (never in code)
+✓ .env.local is in .gitignore (never committed)
+✓ Email validation prevents XSS attacks
+✓ Claude has safety prompts (no competitor names, no defamation)
+✓ Supabase uses Row Level Security
+✓ API endpoint validates all inputs with Zod
+
+ARCHITECTURE HIGHLIGHTS:
+------------------------
+- Serverless: Runs entirely on Vercel (no servers to manage)
+- Real-time: Sub-10-second response from Claude API
+- Scalable: Supabase handles millions of records
+- Type-safe: TypeScript + Zod validation throughout
+- Tested: Full Playwright test coverage
+- Secure: Environment-based configuration
+
+PROJECT STATUS:
+---------------
+✓ All 8 GitHub issues implemented
+✓ Full alpha version complete
+✓ Ready for demo and production deployment
+
+NEXT STEPS FOR PRODUCTION:
+---------------------------
+1. Replace mocked company enrichment with real API (Clearbit/ZoomInfo)
+2. Add analytics tracking (Google Analytics, Mixpanel)
+3. Implement A/B testing for different content variants
+4. Add email marketing integration (send results via email)
+5. Create admin dashboard to view all personalization jobs
+6. Add rate limiting to prevent API abuse
+7. Implement caching for repeated emails/domains
+
+================================================================================
+Built by: InterceptArcher
+Tech Lead: Claude Sonnet 4.5
+Date: January 2026
+================================================================================

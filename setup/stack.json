@@ -1,19 +1,19 @@
 {
-  "project_name": "" ,
-  "owner": "" ,
-  "stack_type": "",
+  "project_name": "linkedin-personalization",
+  "owner": "InterceptArcher",
+  "stack_type": "fullstack",
   "frontend": {
-    "provider": "",
-    "framework": "",
-    "language": ""
+    "provider": "vercel",
+    "framework": "nextjs",
+    "language": "typescript"
   },
   "backend": {
-    "provider": "",
-    "language": "",
-    "framework": ""
+    "provider": "vercel",
+    "language": "typescript",
+    "framework": "nextjs-api"
   },
   "database": {
-    "provider": "",
-    "type": ""
+    "provider": "supabase",
+    "type": "postgres"
   }
 }
