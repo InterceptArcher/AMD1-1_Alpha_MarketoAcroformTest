@@ -78,7 +78,6 @@ class SupabaseClient:
             Inserted record
         """
         data = {
-            "id": str(uuid.uuid4()),
             "email": email,
             "source": source,
             "payload": payload,
@@ -141,7 +140,6 @@ class SupabaseClient:
             Inserted record
         """
         data = {
-            "id": str(uuid.uuid4()),
             "email": email,
             "normalized_fields": normalized_fields,
             "status": status,
@@ -227,7 +225,6 @@ class SupabaseClient:
             Inserted record
         """
         data = {
-            "id": str(uuid.uuid4()),
             "email": email,
             "normalized_data": normalized_data,
             "personalization_intro": intro,
@@ -294,7 +291,6 @@ class SupabaseClient:
             Upserted record
         """
         data = {
-            "id": str(uuid.uuid4()),
             "email": email,
             "normalized_data": normalized_data,
             "personalization_intro": intro,
@@ -503,7 +499,6 @@ class SupabaseClient:
             Stored output record
         """
         data = {
-            "id": str(uuid.uuid4()),
             "job_id": job_id,
             "output_json": output_json,
             "intro_hook": intro_hook,
@@ -576,7 +571,6 @@ class SupabaseClient:
             Created delivery record
         """
         data = {
-            "id": str(uuid.uuid4()),
             "job_id": job_id,
             "pdf_url": pdf_url,
             "storage_path": storage_path,
