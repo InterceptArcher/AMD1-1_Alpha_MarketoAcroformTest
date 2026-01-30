@@ -44,16 +44,30 @@ CASE_STUDIES = {
 }
 
 # Industry to case study mapping
+# Maps all industries from uploaded content files to appropriate case studies
 INDUSTRY_CASE_STUDY_MAP = {
+    # Security/Compliance focus -> PQR (IT Services case study)
     "healthcare": "it_services",
     "financial_services": "it_services",
+    "government": "it_services",
+    "education": "it_services",
+    "non_profit": "it_services",
+    "non-profit": "it_services",
+
+    # Cloud/GPU focus -> KT Cloud (Telecom case study)
     "technology": "telecom",
     "gaming_media": "telecom",
+    "media": "telecom",
+    "media_and_ent": "telecom",
+    "media_and_entertainment": "telecom",
+    "telecommunications": "telecom",
+
+    # Cost optimization focus -> Smurfit Westrock (Manufacturing case study)
     "manufacturing": "manufacturing",
     "retail": "manufacturing",
-    "government": "it_services",
     "energy": "manufacturing",
-    "telecommunications": "telecom",
+    "consumer_goods": "manufacturing",
+    "consumer goods": "manufacturing",
 }
 
 # Buying stage context for personalization
@@ -211,3 +225,209 @@ def get_buying_stage_context(stage: str) -> dict:
 def get_persona_context(persona: str) -> dict:
     """Get context for a persona/role."""
     return PERSONA_CONTEXT.get(persona, PERSONA_CONTEXT["executive"])
+
+
+# --- Content File Loading ---
+# Load detailed content from the uploaded markdown files
+
+from pathlib import Path
+from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
+
+CONTENT_DIR = Path(__file__).parent.parent.parent / "assets" / "content"
+
+# Map normalized industry names to file names
+INDUSTRY_FILE_MAP = {
+    "healthcare": "KP_Industry_Healthcare.md",
+    "financial_services": "KP_Industry_Financial Services.md",
+    "manufacturing": "KP_Industry_Manufacturing.md",
+    "energy": "KP_Industry_Energy.md",
+    "retail": "KP_Industry_Retail.md",
+    "education": "KP_Industry_Education.md",
+    "consumer_goods": "KP_Industry_Consumer Goods.md",
+    "media": "KP_Industry_Media and Ent.md",
+    "media_and_ent": "KP_Industry_Media and Ent.md",
+    "non_profit": "KP_Industry_Non-Profit.md",
+}
+
+JOB_FUNCTION_FILE_MAP = {
+    "bdm": "KP_Job Function_BDM.md",
+    "itdm": "KP_Job Function_ITDM.md",
+    "executive": "KP_Job Function_BDM.md",  # BDM is closest to executive
+    "it_infrastructure": "KP_Job Function_ITDM.md",
+    "security": "KP_Job Function_ITDM.md",
+    "data_ai": "KP_Job Function_ITDM.md",
+}
+
+SEGMENT_FILE_MAP = {
+    "enterprise": "KP_Segment_Enterprise.md",
+    "government": "KP_Segment_Government.md",
+    "mid_market": "KP_Segment_Mid-Market.md",
+    "mid-market": "KP_Segment_Mid-Market.md",
+    "smb": "KP_Segment_SMB.md",
+    "small_business": "KP_Segment_SMB.md",
+}
+
+
+def load_industry_content(industry: str) -> Optional[str]:
+    """
+    Load detailed industry content from markdown files.
+
+    Args:
+        industry: Industry name (e.g., "healthcare", "financial_services")
+
+    Returns:
+        Full markdown content or None if not found
+    """
+    industry_normalized = industry.lower().replace(" ", "_").replace("-", "_")
+    filename = INDUSTRY_FILE_MAP.get(industry_normalized)
+
+    if not filename:
+        logger.warning(f"No content file mapping for industry: {industry}")
+        return None
+
+    filepath = CONTENT_DIR / filename
+    if not filepath.exists():
+        logger.warning(f"Industry content file not found: {filepath}")
+        return None
+
+    try:
+        return filepath.read_text(encoding="utf-8")
+    except Exception as e:
+        logger.error(f"Error reading industry content: {e}")
+        return None
+
+
+def load_job_function_content(job_function: str) -> Optional[str]:
+    """
+    Load job function content from markdown files.
+
+    Args:
+        job_function: Job function (e.g., "bdm", "itdm", "executive")
+
+    Returns:
+        Full markdown content or None if not found
+    """
+    function_normalized = job_function.lower().replace(" ", "_")
+    filename = JOB_FUNCTION_FILE_MAP.get(function_normalized)
+
+    if not filename:
+        logger.warning(f"No content file mapping for job function: {job_function}")
+        return None
+
+    filepath = CONTENT_DIR / filename
+    if not filepath.exists():
+        logger.warning(f"Job function content file not found: {filepath}")
+        return None
+
+    try:
+        return filepath.read_text(encoding="utf-8")
+    except Exception as e:
+        logger.error(f"Error reading job function content: {e}")
+        return None
+
+
+def load_segment_content(segment: str) -> Optional[str]:
+    """
+    Load segment content from markdown files.
+
+    Args:
+        segment: Company segment (e.g., "enterprise", "mid_market", "smb")
+
+    Returns:
+        Full markdown content or None if not found
+    """
+    segment_normalized = segment.lower().replace(" ", "_").replace("-", "_")
+    filename = SEGMENT_FILE_MAP.get(segment_normalized)
+
+    if not filename:
+        logger.warning(f"No content file mapping for segment: {segment}")
+        return None
+
+    filepath = CONTENT_DIR / filename
+    if not filepath.exists():
+        logger.warning(f"Segment content file not found: {filepath}")
+        return None
+
+    try:
+        return filepath.read_text(encoding="utf-8")
+    except Exception as e:
+        logger.error(f"Error reading segment content: {e}")
+        return None
+
+
+def extract_key_points(content: str, section: str = None, max_points: int = 5) -> list[str]:
+    """
+    Extract key bullet points from markdown content.
+
+    Args:
+        content: Full markdown content
+        section: Optional section header to extract from
+        max_points: Maximum number of points to return
+
+    Returns:
+        List of key points as strings
+    """
+    if not content:
+        return []
+
+    lines = content.split("\n")
+    points = []
+
+    in_section = section is None  # If no section specified, start collecting immediately
+
+    for line in lines:
+        # Check if we've reached the target section
+        if section and line.startswith("## ") and section.lower() in line.lower():
+            in_section = True
+            continue
+
+        # Check if we've left the section
+        if in_section and section and line.startswith("## "):
+            break
+
+        # Collect bullet points
+        if in_section and (line.strip().startswith("- ") or line.strip().startswith("* ")):
+            point = line.strip().lstrip("-*").strip()
+            if point and len(point) > 10:  # Skip very short points
+                points.append(point)
+
+            if len(points) >= max_points:
+                break
+
+    return points
+
+
+def get_industry_key_insights(industry: str) -> dict:
+    """
+    Get key insights for an industry to use in personalization.
+
+    Returns a structured dict with:
+    - trends: Key industry trends
+    - priorities: Technology priorities
+    - challenges: Common challenges
+    - messaging_tips: How to frame messaging
+
+    Args:
+        industry: Industry name
+
+    Returns:
+        Dict with categorized insights
+    """
+    content = load_industry_content(industry)
+    if not content:
+        return {
+            "trends": [],
+            "priorities": [],
+            "challenges": [],
+            "messaging_tips": []
+        }
+
+    return {
+        "trends": extract_key_points(content, "Major trends", 3),
+        "priorities": extract_key_points(content, "Technology Investment", 3),
+        "challenges": extract_key_points(content, "challenges", 3),
+        "messaging_tips": extract_key_points(content, "messaging", 3),
+    }

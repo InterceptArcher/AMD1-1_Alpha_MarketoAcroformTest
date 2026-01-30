@@ -228,7 +228,7 @@ class PDFService:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>From Observers to Enterprise AI Readiness</title>
     <style>
-        @page { size: A4; margin: 1.5cm; }
+        @page { size: letter; margin: 0.75in; }
         * { box-sizing: border-box; }
         body {
             font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;

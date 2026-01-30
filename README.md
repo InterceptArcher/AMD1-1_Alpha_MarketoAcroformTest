@@ -118,20 +118,7 @@ This system transforms visitor emails into personalized ebook experiences throug
 
 ---
 
-<<<<<<< HEAD
 ## Installation
-=======
-## Quick Start
-
-### Prerequisites
-
-- Node.js 18+
-- Python 3.10+
-- Supabase project
-- API keys (see Environment Variables)
-
-### Local Development
->>>>>>> 65663e28ee1ba55ef8b7e3e35e609a645cfa4d7d
 
 ### Prerequisites
 - Node.js 18+ and npm
@@ -223,6 +210,30 @@ These inputs directly influence the LLM-generated content.
 - **Email Delivery**: Sends personalized PDF to user's email (supports SendGrid, Resend, SMTP)
 - **Download Fallback**: Direct download button always available if email delivery fails
 - **Fallback**: Minimal valid PDF generated even without PDF libraries installed
+
+### AcroForm PDF Personalization (In Progress)
+
+A more advanced PDF personalization approach using AcroForm fields:
+
+**Methodology:**
+1. Designer creates PDF template with editable AcroForm text fields at personalization points
+2. Backend fills fields with LLM-generated content based on reader profile
+3. PDF is flattened so fields become static text (no visible form boxes)
+4. Result: Pixel-perfect branded PDF with personalized content
+
+**Three Personalization Points:**
+| Location | Field | Personalized By |
+|----------|-------|-----------------|
+| Page 1 (Intro) | `personalized_hook` | Role, company news, buying stage |
+| Pages 11-13 (Case Studies) | `case_study_X_framing` | Industry mapping |
+| Pages 14, 16 (CTA) | `personalized_cta_*` | Buying stage, role |
+
+**Content Library:** 16 markdown files in `/backend/assets/content/`:
+- 9 industry guides (Healthcare, Manufacturing, Financial Services, etc.)
+- 2 job function guides (BDM, ITDM)
+- 4 segment guides (Enterprise, Mid-Market, SMB, Government)
+
+**Status:** Waiting for designer to deliver `amdtemplate_with_fields.pdf`. See `backend/assets/DESIGNER_SPEC.md` for requirements.
 
 ---
 
