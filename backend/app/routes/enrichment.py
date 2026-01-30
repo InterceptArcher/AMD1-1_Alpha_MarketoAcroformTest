@@ -91,7 +91,17 @@ async def enrich_profile(
             "last_name": request.lastName,
         }
 
-        # Generate personalization with user context
+        # Get company news from Tavily (if available in enrichment)
+        company_news = finalized.get("company_context", "")
+
+        # Generate AMD ebook personalization (3 sections)
+        ebook_personalization = await llm_service.generate_ebook_personalization(
+            profile=finalized,
+            user_context=user_context,
+            company_news=company_news
+        )
+
+        # Also generate legacy personalization for backward compatibility
         use_opus = llm_service.should_use_opus(finalized)
         personalization = await llm_service.generate_personalization(
             finalized,
@@ -102,19 +112,30 @@ async def enrich_profile(
         intro_hook = personalization.get("intro_hook", "")
         cta = personalization.get("cta", "")
 
-        # Run compliance check
+        # Run compliance check on all personalized content
+        compliance_service = ComplianceService()
         compliance_result = compliance_service.check(intro_hook, cta, auto_correct=True)
 
         if not compliance_result.passed and compliance_result.corrected_intro:
-            # Use corrected content
             intro_hook = compliance_result.corrected_intro
             cta = compliance_result.corrected_cta
             logger.info(f"[{job_id}] Using compliance-corrected content")
         elif not compliance_result.passed:
-            # Use safe fallback
             intro_hook = compliance_service.get_safe_intro(finalized)
             cta = compliance_service.get_safe_cta(finalized)
             logger.warning(f"[{job_id}] Compliance failed, using fallback content")
+
+        # Also check ebook personalization
+        ebook_hook = ebook_personalization.get("personalized_hook", "")
+        ebook_cta = ebook_personalization.get("personalized_cta", "")
+        ebook_compliance = compliance_service.check(ebook_hook, ebook_cta, auto_correct=True)
+        if not ebook_compliance.passed and ebook_compliance.corrected_intro:
+            ebook_personalization["personalized_hook"] = ebook_compliance.corrected_intro
+            ebook_personalization["personalized_cta"] = ebook_compliance.corrected_cta
+
+        # Store ebook personalization in normalized_data for PDF generation
+        finalized["ebook_personalization"] = ebook_personalization
+        finalized["user_context"] = user_context
 
         # Update finalize_data with personalization
         supabase.upsert_finalize_data(
@@ -303,13 +324,27 @@ async def generate_pdf(
         # Initialize PDF service
         pdf_service = PDFService(supabase)
 
-        # Generate PDF
-        result = await pdf_service.generate_pdf(
-            job_id=job_id,
-            profile=finalized_record.get("normalized_data", {}),
-            intro_hook=finalized_record.get("personalization_intro", ""),
-            cta=finalized_record.get("personalization_cta", "")
-        )
+        # Get profile data
+        normalized_data = finalized_record.get("normalized_data", {})
+        ebook_personalization = normalized_data.get("ebook_personalization", {})
+        user_context = normalized_data.get("user_context", {})
+
+        # Generate AMD ebook PDF with 3 personalization points
+        if ebook_personalization:
+            result = await pdf_service.generate_amd_ebook(
+                job_id=job_id,
+                profile=normalized_data,
+                personalization=ebook_personalization,
+                user_context=user_context
+            )
+        else:
+            # Fallback to legacy template
+            result = await pdf_service.generate_pdf(
+                job_id=job_id,
+                profile=normalized_data,
+                intro_hook=finalized_record.get("personalization_intro", ""),
+                cta=finalized_record.get("personalization_cta", "")
+            )
 
         # Store PDF delivery record
         try:
@@ -387,13 +422,25 @@ async def deliver_ebook(
         intro_hook = finalized_record.get("personalization_intro", "")
         cta = finalized_record.get("personalization_cta", "")
         job_id = finalized_record.get("id", 0)
+        ebook_personalization = profile.get("ebook_personalization", {})
+        user_context = profile.get("user_context", {})
 
         # Initialize services
         pdf_service = PDFService(supabase)
         email_service = EmailService()
 
         # Generate PDF (get raw bytes for email attachment)
-        html_content = pdf_service._render_template(profile, intro_hook, cta)
+        if ebook_personalization:
+            html_content = pdf_service._render_amd_ebook_template(
+                profile=profile,
+                personalized_hook=ebook_personalization.get("personalized_hook", ""),
+                case_study=pdf_service._get_case_study_for_profile(profile, user_context),
+                case_study_framing=ebook_personalization.get("case_study_framing", ""),
+                personalized_cta=ebook_personalization.get("personalized_cta", ""),
+                user_context=user_context
+            )
+        else:
+            html_content = pdf_service._render_template(profile, intro_hook, cta)
         pdf_bytes = await pdf_service._html_to_pdf(html_content)
 
         if not pdf_bytes:
@@ -404,17 +451,25 @@ async def deliver_ebook(
             to_email=email,
             pdf_bytes=pdf_bytes,
             profile=profile,
-            intro_hook=intro_hook,
-            cta=cta
+            intro_hook=ebook_personalization.get("personalized_hook", intro_hook),
+            cta=ebook_personalization.get("personalized_cta", cta)
         )
 
         # Also store PDF for fallback download
-        pdf_result = await pdf_service.generate_pdf(
-            job_id=job_id,
-            profile=profile,
-            intro_hook=intro_hook,
-            cta=cta
-        )
+        if ebook_personalization:
+            pdf_result = await pdf_service.generate_amd_ebook(
+                job_id=job_id,
+                profile=profile,
+                personalization=ebook_personalization,
+                user_context=user_context
+            )
+        else:
+            pdf_result = await pdf_service.generate_pdf(
+                job_id=job_id,
+                profile=profile,
+                intro_hook=intro_hook,
+                cta=cta
+            )
 
         # Store delivery record
         try:
@@ -499,8 +554,22 @@ async def download_pdf(
         # Initialize PDF service
         pdf_service = PDFService(supabase)
 
+        # Get ebook personalization if available
+        ebook_personalization = profile.get("ebook_personalization", {})
+        user_context = profile.get("user_context", {})
+
         # Generate PDF bytes directly
-        html_content = pdf_service._render_template(profile, intro_hook, cta)
+        if ebook_personalization:
+            html_content = pdf_service._render_amd_ebook_template(
+                profile=profile,
+                personalized_hook=ebook_personalization.get("personalized_hook", ""),
+                case_study=pdf_service._get_case_study_for_profile(profile, user_context),
+                case_study_framing=ebook_personalization.get("case_study_framing", ""),
+                personalized_cta=ebook_personalization.get("personalized_cta", ""),
+                user_context=user_context
+            )
+        else:
+            html_content = pdf_service._render_template(profile, intro_hook, cta)
         pdf_bytes = await pdf_service._html_to_pdf(html_content)
 
         if not pdf_bytes:

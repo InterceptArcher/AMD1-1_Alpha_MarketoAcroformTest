@@ -444,3 +444,215 @@ No other text."""
             return True
 
         return False
+
+    async def generate_ebook_personalization(
+        self,
+        profile: Dict[str, Any],
+        user_context: Optional[Dict[str, Any]] = None,
+        company_news: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate personalized content for AMD ebook - 3 sections:
+        1. Hook/Intro - Based on role, buying stage, company news
+        2. Case Study Framing - Context for why selected case study is relevant
+        3. CTA - Based on buying stage and role
+
+        Args:
+            profile: Normalized enrichment data
+            user_context: User-provided context (goal, persona, industry)
+            company_news: Recent company news from Tavily
+
+        Returns:
+            Dict with personalized_hook, case_study_framing, personalized_cta
+        """
+        if not self.client:
+            return self._mock_ebook_response(profile, user_context)
+
+        user_context = user_context or {}
+        start_time = time.time()
+
+        prompt = self._build_ebook_prompt(profile, user_context, company_news)
+
+        try:
+            response = self.client.messages.create(
+                model=DEFAULT_MODEL,
+                max_tokens=1000,
+                messages=[{"role": "user", "content": prompt}],
+                system=self._get_ebook_system_prompt()
+            )
+
+            content = response.content[0].text
+            parsed = self._parse_ebook_response(content)
+
+            if parsed:
+                latency_ms = int((time.time() - start_time) * 1000)
+                parsed["model_used"] = DEFAULT_MODEL
+                parsed["tokens_used"] = response.usage.input_tokens + response.usage.output_tokens
+                parsed["latency_ms"] = latency_ms
+                logger.info(f"Generated ebook personalization: tokens={parsed['tokens_used']}, latency={latency_ms}ms")
+                return parsed
+
+        except (RateLimitError, APITimeoutError, APIError) as e:
+            logger.error(f"LLM API error for ebook personalization: {e}")
+
+        # Fallback
+        return self._mock_ebook_response(profile, user_context)
+
+    def _get_ebook_system_prompt(self) -> str:
+        """System prompt for AMD ebook personalization."""
+        return """You are a B2B marketing expert creating personalized content for AMD's enterprise AI readiness ebook.
+
+Your task: Generate 3 personalized sections based on the prospect's profile, buying stage, and company context.
+
+The ebook is about data center modernization and AI readiness. It covers:
+- Three stages: Leaders (fully modernized), Challengers (in progress), Observers (planning)
+- Modernization strategies: "modernize in place" vs "refactor and shift"
+- Case studies: KT Cloud (telecom/AI), Smurfit Westrock (manufacturing/sustainability), PQR (IT services)
+- AMD solutions: EPYC CPUs, Instinct GPUs, Pensando DPUs
+
+Rules:
+1. Hook should be 2-3 sentences, directly addressing their situation
+2. Reference their company/industry when relevant
+3. Case study framing should explain why the selected case study is relevant to them
+4. CTA should be specific to their buying stage and role
+5. Sound helpful and consultative, not salesy
+6. No unsubstantiated claims ("guaranteed", "proven", "#1")
+
+Output ONLY valid JSON:
+{
+  "personalized_hook": "Your personalized opening...",
+  "case_study_framing": "Why this case study matters for you...",
+  "personalized_cta": "Your specific call to action..."
+}"""
+
+    def _build_ebook_prompt(
+        self,
+        profile: Dict[str, Any],
+        user_context: Dict[str, Any],
+        company_news: Optional[str]
+    ) -> str:
+        """Build prompt for ebook personalization."""
+        parts = ["Generate personalized AMD ebook content for this prospect:\n"]
+
+        # Profile data
+        parts.append(f"Name: {profile.get('first_name', 'Reader')} {profile.get('last_name', '')}")
+        parts.append(f"Company: {profile.get('company_name', 'their company')}")
+        parts.append(f"Title: {profile.get('title', 'Professional')}")
+        parts.append(f"Industry: {user_context.get('industry_input') or profile.get('industry', 'Technology')}")
+
+        if profile.get('company_size'):
+            parts.append(f"Company Size: {profile.get('company_size')}")
+
+        # User context
+        goal = user_context.get('goal', '')
+        persona = user_context.get('persona', '')
+
+        goal_map = {
+            "exploring": "early research phase, discovering what's possible with AI infrastructure",
+            "evaluating": "actively comparing solutions and building a shortlist",
+            "learning": "deepening expertise on best practices and implementation",
+            "building_case": "preparing an internal business case for investment"
+        }
+
+        persona_map = {
+            "executive": "C-suite/VP level, focused on strategic outcomes and ROI",
+            "it_infrastructure": "IT/Infrastructure professional, focused on technical implementation",
+            "security": "Security professional, focused on compliance and data protection",
+            "data_ai": "Data/AI engineer, focused on model performance and compute efficiency",
+            "sales_gtm": "Sales/GTM leader, focused on revenue impact and competitive advantage",
+            "hr_people": "HR/People Ops, focused on workforce enablement"
+        }
+
+        if goal:
+            parts.append(f"\nBuying Stage: {goal_map.get(goal, goal)}")
+        if persona:
+            parts.append(f"Role Focus: {persona_map.get(persona, persona)}")
+
+        # Company news context
+        if company_news:
+            parts.append(f"\nRecent Company News: {company_news[:500]}")
+
+        # Case study selection hint
+        industry = (user_context.get('industry_input') or profile.get('industry', '')).lower()
+        if 'telecom' in industry or 'tech' in industry or 'gaming' in industry:
+            parts.append("\nMost relevant case study: KT Cloud (AI/GPU cloud services)")
+        elif 'manufact' in industry or 'retail' in industry or 'energy' in industry:
+            parts.append("\nMost relevant case study: Smurfit Westrock (cost optimization, sustainability)")
+        else:
+            parts.append("\nMost relevant case study: PQR (IT services, security, automation)")
+
+        parts.append("\nGenerate the personalized JSON now.")
+        return "\n".join(parts)
+
+    def _parse_ebook_response(self, content: str) -> Optional[Dict[str, str]]:
+        """Parse ebook personalization response."""
+        try:
+            json_match = re.search(
+                r'\{[^{}]*"personalized_hook"[^{}]*"case_study_framing"[^{}]*"personalized_cta"[^{}]*\}',
+                content,
+                re.DOTALL
+            )
+            if json_match:
+                data = json.loads(json_match.group())
+                if all(k in data for k in ["personalized_hook", "case_study_framing", "personalized_cta"]):
+                    return data
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON parse error for ebook response: {e}")
+        return None
+
+    def _mock_ebook_response(
+        self,
+        profile: Dict[str, Any],
+        user_context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Generate mock ebook personalization when API not available."""
+        user_context = user_context or {}
+        first_name = profile.get('first_name', 'Reader')
+        company = profile.get('company_name', 'your organization')
+        title = profile.get('title', 'leader')
+        industry = user_context.get('industry_input') or profile.get('industry', 'your industry')
+        goal = user_context.get('goal', 'exploring')
+        persona = user_context.get('persona', 'executive')
+
+        # Hook based on buying stage
+        hooks = {
+            "exploring": f"As {company} begins exploring AI infrastructure options, understanding where you stand on the modernization curve is the first step. This guide will help you assess your current state and identify the path forward.",
+            "evaluating": f"You're evaluating AI infrastructure solutions for {company}—a critical decision that will shape your competitive position. This guide provides the framework and proof points you need to make an informed choice.",
+            "learning": f"Staying ahead of AI infrastructure trends is essential for {title}s in {industry}. This guide distills the latest research and real-world examples into actionable insights for {company}.",
+            "building_case": f"Building a compelling business case for AI infrastructure investment at {company} requires solid data and clear ROI projections. This guide provides the evidence and frameworks you need."
+        }
+
+        # CTA based on persona and stage
+        ctas = {
+            ("executive", "exploring"): "Discover where your organization stands on the AI readiness curve—and what Leaders do differently.",
+            ("executive", "evaluating"): "See the business impact metrics that helped similar organizations justify their AI infrastructure investments.",
+            ("executive", "building_case"): "Access the executive brief with ROI data and board-ready insights for your AI infrastructure proposal.",
+            ("it_infrastructure", "exploring"): "Explore the technical architectures that distinguish AI-ready data centers from legacy environments.",
+            ("it_infrastructure", "evaluating"): "Compare the modernization approaches: in-place upgrades vs. cloud migration—with technical trade-offs.",
+            ("data_ai", "exploring"): "Learn how AMD Instinct accelerators deliver the compute performance your AI workloads demand.",
+            ("data_ai", "evaluating"): "See the benchmark data: throughput, cost-per-training-run, and energy efficiency comparisons.",
+            ("security", "exploring"): "Understand how modern AI infrastructure addresses security and compliance requirements.",
+            ("security", "evaluating"): "Review the security architectures used by regulated industries adopting AI at scale.",
+        }
+
+        # Case study framing based on industry
+        industry_lower = industry.lower() if industry else ""
+        if 'telecom' in industry_lower or 'tech' in industry_lower:
+            case_framing = f"KT Cloud faced challenges similar to {company}—scaling AI compute while managing costs. Their approach with AMD Instinct accelerators offers a blueprint for your AI infrastructure strategy."
+        elif 'manufact' in industry_lower or 'retail' in industry_lower:
+            case_framing = f"Smurfit Westrock's journey mirrors the challenges facing {industry} organizations: balancing cost optimization with sustainability goals. Their 25% cost reduction while cutting emissions shows what's possible."
+        else:
+            case_framing = f"PQR's transformation demonstrates how organizations in {industry} can modernize infrastructure while enhancing security. Their automation-first approach delivers both efficiency and protection."
+
+        hook = hooks.get(goal, hooks["exploring"])
+        cta_key = (persona, goal)
+        cta = ctas.get(cta_key, ctas.get((persona, "exploring"), "Explore how AMD can accelerate your AI infrastructure journey."))
+
+        return {
+            "personalized_hook": hook,
+            "case_study_framing": case_framing,
+            "personalized_cta": cta,
+            "model_used": "mock",
+            "tokens_used": 0,
+            "latency_ms": 0
+        }

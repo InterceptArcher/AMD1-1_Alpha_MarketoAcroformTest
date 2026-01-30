@@ -12,6 +12,13 @@ from typing import Dict, Any, Optional
 from string import Template
 
 from app.config import settings
+from app.services.ebook_content import (
+    EBOOK_SECTIONS,
+    CASE_STUDIES,
+    get_case_study_for_industry,
+    get_buying_stage_context,
+    get_persona_context
+)
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +103,371 @@ class PDFService:
         except Exception as e:
             logger.error(f"PDF generation failed for job {job_id}: {e}")
             raise
+
+    async def generate_amd_ebook(
+        self,
+        job_id: int,
+        profile: Dict[str, Any],
+        personalization: Dict[str, Any],
+        user_context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate personalized AMD ebook with 3 personalization points.
+
+        Args:
+            job_id: Job ID for tracking
+            profile: Normalized profile data
+            personalization: Dict with personalized_hook, case_study_framing, personalized_cta
+            user_context: User-provided context (goal, persona, industry)
+
+        Returns:
+            Dict with pdf_url, storage_path, file_size
+        """
+        try:
+            user_context = user_context or {}
+
+            # Get the appropriate case study based on industry
+            industry = user_context.get("industry_input") or profile.get("industry", "technology")
+            case_study = get_case_study_for_industry(industry)
+
+            # Generate HTML content with AMD ebook template
+            html_content = self._render_amd_ebook_template(
+                profile=profile,
+                personalized_hook=personalization.get("personalized_hook", ""),
+                case_study=case_study,
+                case_study_framing=personalization.get("case_study_framing", ""),
+                personalized_cta=personalization.get("personalized_cta", ""),
+                user_context=user_context
+            )
+
+            # Convert to PDF
+            pdf_bytes = await self._html_to_pdf(html_content)
+
+            if not pdf_bytes:
+                raise ValueError("PDF generation returned empty content")
+
+            # Generate unique filename
+            email = profile.get("email", "unknown")
+            filename = self._generate_filename(email, job_id)
+
+            # Store in Supabase Storage (if available)
+            if self.supabase:
+                storage_path, pdf_url = await self._store_pdf(pdf_bytes, filename)
+            else:
+                import base64
+                storage_path = f"local/{filename}"
+                pdf_url = f"data:application/pdf;base64,{base64.b64encode(pdf_bytes).decode()}"
+
+            result = {
+                "pdf_url": pdf_url,
+                "storage_path": storage_path,
+                "file_size_bytes": len(pdf_bytes),
+                "generated_at": datetime.utcnow().isoformat(),
+                "expires_at": (datetime.utcnow() + timedelta(hours=PDF_EXPIRY_HOURS)).isoformat(),
+                "case_study_used": case_study["title"]
+            }
+
+            logger.info(f"Generated AMD ebook for job {job_id}: {len(pdf_bytes)} bytes, case study: {case_study['title']}")
+            return result
+
+        except Exception as e:
+            logger.error(f"AMD ebook generation failed for job {job_id}: {e}")
+            raise
+
+    def _render_amd_ebook_template(
+        self,
+        profile: Dict[str, Any],
+        personalized_hook: str,
+        case_study: Dict[str, Any],
+        case_study_framing: str,
+        personalized_cta: str,
+        user_context: Dict[str, Any]
+    ) -> str:
+        """Render AMD ebook HTML template with personalization."""
+        template = Template(self._get_amd_ebook_template())
+
+        variables = {
+            "first_name": profile.get("first_name", "Reader"),
+            "company_name": profile.get("company_name", "your company"),
+            "title": profile.get("title", "Professional"),
+            "industry": user_context.get("industry_input") or profile.get("industry", "your industry"),
+            "generated_date": datetime.utcnow().strftime("%B %d, %Y"),
+            # Personalized sections
+            "personalized_hook": personalized_hook,
+            "case_study_framing": case_study_framing,
+            "personalized_cta": personalized_cta,
+            # Case study content
+            "case_study_title": case_study["title"],
+            "case_study_company": case_study["company"],
+            "case_study_industry": case_study["industry"],
+            "case_study_challenge": case_study["challenge"],
+            "case_study_solution": case_study["solution"],
+            "case_study_quote": case_study["quote"],
+            "case_study_quote_author": case_study["quote_author"],
+            "case_study_result": case_study["result"],
+            # Static content
+            "intro_section": EBOOK_SECTIONS["intro_section"],
+            "three_stages_intro": EBOOK_SECTIONS["three_stages_intro"],
+            "leaders_section": EBOOK_SECTIONS["leaders_section"],
+            "challengers_section": EBOOK_SECTIONS["challengers_section"],
+            "observers_section": EBOOK_SECTIONS["observers_section"],
+            "path_to_leadership": EBOOK_SECTIONS["path_to_leadership"],
+            "modernization_models": EBOOK_SECTIONS["modernization_models"],
+            "why_amd": EBOOK_SECTIONS["why_amd"],
+            "assessment_questions": EBOOK_SECTIONS["assessment_questions"],
+        }
+
+        return template.safe_substitute(variables)
+
+    def _get_amd_ebook_template(self) -> str:
+        """Get the AMD ebook HTML template."""
+        return '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>From Observers to Enterprise AI Readiness</title>
+    <style>
+        @page { size: A4; margin: 1.5cm; }
+        * { box-sizing: border-box; }
+        body {
+            font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #1a1a2e;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            font-size: 11pt;
+        }
+        h1 { font-size: 28pt; color: #ED1C24; margin-bottom: 10px; }
+        h2 { font-size: 18pt; color: #1a1a2e; border-bottom: 2px solid #ED1C24; padding-bottom: 8px; margin-top: 30px; }
+        h3 { font-size: 14pt; color: #ED1C24; margin-top: 20px; }
+        .cover {
+            text-align: center;
+            padding: 80px 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            page-break-after: always;
+            border-radius: 8px;
+        }
+        .cover h1 { color: white; font-size: 32pt; }
+        .cover .subtitle { font-size: 14pt; color: #aaa; margin-top: 20px; }
+        .cover .personalized-for {
+            margin-top: 40px;
+            padding: 20px;
+            background: rgba(237, 28, 36, 0.2);
+            border-radius: 8px;
+            border: 1px solid #ED1C24;
+        }
+        .personalized-hook {
+            background: linear-gradient(135deg, #ED1C24 0%, #c41e24 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin: 30px 0;
+            font-size: 12pt;
+        }
+        .personalized-hook h3 { color: white; margin-top: 0; }
+        .section { page-break-inside: avoid; margin-bottom: 25px; }
+        .stats-box {
+            background: #f5f5f5;
+            padding: 20px;
+            border-left: 4px solid #ED1C24;
+            margin: 20px 0;
+        }
+        .stats-box .stat { font-size: 24pt; color: #ED1C24; font-weight: bold; }
+        .case-study {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            margin: 30px 0;
+            border: 1px solid #e0e0e0;
+            page-break-inside: avoid;
+        }
+        .case-study-header {
+            background: #1a1a2e;
+            color: white;
+            padding: 15px 20px;
+            margin: -25px -25px 20px -25px;
+            border-radius: 8px 8px 0 0;
+        }
+        .case-study-framing {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ED1C24;
+            font-style: italic;
+        }
+        .quote {
+            font-style: italic;
+            padding: 15px 20px;
+            background: white;
+            border-left: 4px solid #ED1C24;
+            margin: 15px 0;
+        }
+        .quote-author { font-weight: bold; color: #666; margin-top: 10px; }
+        .cta-section {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 40px;
+            page-break-inside: avoid;
+        }
+        .cta-section h2 { color: white; border: none; }
+        .cta-section .personalized-cta {
+            font-size: 14pt;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(237, 28, 36, 0.3);
+            border-radius: 8px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #ED1C24;
+            color: white;
+            padding: 15px 40px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 15px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            font-size: 9pt;
+            color: #666;
+        }
+        .amd-logo { color: #ED1C24; font-weight: bold; font-size: 16pt; }
+        ul { padding-left: 20px; }
+        li { margin-bottom: 8px; }
+        .two-col { display: flex; gap: 20px; }
+        .two-col > div { flex: 1; }
+    </style>
+</head>
+<body>
+    <!-- COVER PAGE -->
+    <div class="cover">
+        <div class="amd-logo">AMD</div>
+        <h1>FROM OBSERVERS TO<br>ENTERPRISE AI READINESS</h1>
+        <p class="subtitle">A Strategic Guide to Data Center Modernization</p>
+        <div class="personalized-for">
+            <p>Prepared for</p>
+            <p style="font-size: 18pt; font-weight: bold;">$first_name</p>
+            <p>$title at $company_name</p>
+            <p style="margin-top: 15px; font-size: 10pt;">$generated_date</p>
+        </div>
+    </div>
+
+    <!-- PERSONALIZED HOOK -->
+    <div class="personalized-hook">
+        <h3>A Message For You</h3>
+        <p>$personalized_hook</p>
+    </div>
+
+    <!-- INTRO SECTION -->
+    <div class="section">
+        <h2>Redefining the Data Center: AI Readiness in the Age of Acceleration</h2>
+        <p>$intro_section</p>
+        <div class="stats-box">
+            <span class="stat">97%</span>
+            <p>of data center capacity was occupied as of March 2023 in top North American markets.</p>
+        </div>
+    </div>
+
+    <!-- THREE STAGES -->
+    <div class="section">
+        <h2>Understanding the Three Stages of Data Center Modernization</h2>
+        <p>$three_stages_intro</p>
+    </div>
+
+    <div class="section">
+        <h3>Data Center Leaders (26%)</h3>
+        <p>$leaders_section</p>
+    </div>
+
+    <div class="section">
+        <h3>Data Center Challengers (32%)</h3>
+        <p>$challengers_section</p>
+    </div>
+
+    <div class="section">
+        <h3>Data Center Observers (42%)</h3>
+        <p>$observers_section</p>
+    </div>
+
+    <!-- PATH TO LEADERSHIP -->
+    <div class="section">
+        <h2>The Path to Leadership: Moving Through the Stages</h2>
+        <p>$path_to_leadership</p>
+    </div>
+
+    <div class="section">
+        <h2>Modernization Models</h2>
+        <p>$modernization_models</p>
+    </div>
+
+    <!-- PERSONALIZED CASE STUDY -->
+    <div class="case-study">
+        <div class="case-study-header">
+            <h3 style="margin: 0; color: white;">Customer Success: $case_study_company</h3>
+            <p style="margin: 5px 0 0 0; font-size: 10pt; opacity: 0.8;">$case_study_industry</p>
+        </div>
+        <div class="case-study-framing">
+            <strong>Why this matters for $company_name:</strong><br>
+            $case_study_framing
+        </div>
+        <p><strong>The Challenge:</strong> $case_study_challenge</p>
+        <p><strong>The Solution:</strong> $case_study_solution</p>
+        <div class="quote">
+            "$case_study_quote"
+            <div class="quote-author">— $case_study_quote_author</div>
+        </div>
+        <p><strong>The Result:</strong> $case_study_result</p>
+    </div>
+
+    <!-- ASSESSMENT -->
+    <div class="section">
+        <h2>Where Do You Stand on the Modernization Curve?</h2>
+        <p>$assessment_questions</p>
+    </div>
+
+    <!-- WHY AMD -->
+    <div class="section">
+        <h2>Why AMD: Your Strategic Partner</h2>
+        <p>$why_amd</p>
+    </div>
+
+    <!-- PERSONALIZED CTA -->
+    <div class="cta-section">
+        <h2>Ready to Take the Next Step?</h2>
+        <div class="personalized-cta">
+            $personalized_cta
+        </div>
+        <a href="https://www.amd.com/en/solutions/data-center.html" class="cta-button">Explore AMD AI Solutions</a>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <p>This guide was personalized for $first_name at $company_name</p>
+        <p>Generated on $generated_date</p>
+        <p style="margin-top: 15px;">© 2025 Advanced Micro Devices, Inc.</p>
+    </div>
+</body>
+</html>'''
+
+    def _get_case_study_for_profile(
+        self,
+        profile: Dict[str, Any],
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Get appropriate case study based on profile industry."""
+        industry = user_context.get("industry_input") or profile.get("industry", "technology")
+        return get_case_study_for_industry(industry)
 
     def _render_template(
         self,
