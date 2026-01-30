@@ -691,7 +691,7 @@ class PDFService:
         """
         Convert HTML to PDF.
 
-        Uses weasyprint if available, otherwise returns a placeholder.
+        Uses weasyprint if available, otherwise uses reportlab with extracted content.
 
         Args:
             html_content: HTML string to convert
@@ -703,28 +703,225 @@ class PDFService:
             # Try weasyprint first (preferred for production)
             from weasyprint import HTML
             pdf_bytes = HTML(string=html_content).write_pdf()
+            logger.info("Generated PDF using weasyprint")
             return pdf_bytes
         except ImportError:
-            logger.warning("weasyprint not available, generating placeholder PDF")
+            logger.warning("weasyprint not available, using reportlab fallback")
+        except Exception as e:
+            logger.warning(f"weasyprint failed: {e}, using reportlab fallback")
 
-        # Fallback: Generate a simple PDF using reportlab if available
+        # Fallback: Generate PDF using reportlab with actual content
         try:
-            from reportlab.lib.pagesizes import letter
-            from reportlab.pdfgen import canvas
-
-            buffer = io.BytesIO()
-            c = canvas.Canvas(buffer, pagesize=letter)
-            c.drawString(100, 750, "Personalized Ebook")
-            c.drawString(100, 700, "Full PDF generation requires weasyprint")
-            c.save()
-            buffer.seek(0)
-            return buffer.read()
-        except ImportError:
-            pass
+            return self._generate_reportlab_pdf(html_content)
+        except Exception as e:
+            logger.error(f"reportlab PDF generation failed: {e}")
 
         # Ultimate fallback: Return a minimal valid PDF
         logger.warning("No PDF library available, returning minimal PDF")
         return self._minimal_pdf()
+
+    def _generate_reportlab_pdf(self, html_content: str) -> bytes:
+        """Generate PDF using reportlab with content extracted from HTML."""
+        import re
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.colors import HexColor, white, black
+        from reportlab.lib.units import inch
+        from reportlab.platypus import (
+            SimpleDocTemplate, Paragraph, Spacer, PageBreak,
+            Table, TableStyle, FrameBreak
+        )
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=0.75*inch,
+            leftMargin=0.75*inch,
+            topMargin=0.75*inch,
+            bottomMargin=0.75*inch
+        )
+
+        # Define colors
+        amd_red = HexColor('#ED1C24')
+        dark_blue = HexColor('#1a1a2e')
+
+        # Create styles
+        styles = getSampleStyleSheet()
+
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=amd_red,
+            spaceAfter=12,
+            alignment=TA_CENTER
+        )
+
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=16,
+            textColor=dark_blue,
+            spaceBefore=20,
+            spaceAfter=10
+        )
+
+        subheading_style = ParagraphStyle(
+            'CustomSubheading',
+            parent=styles['Heading3'],
+            fontSize=14,
+            textColor=amd_red,
+            spaceBefore=15,
+            spaceAfter=8
+        )
+
+        body_style = ParagraphStyle(
+            'CustomBody',
+            parent=styles['Normal'],
+            fontSize=11,
+            leading=16,
+            spaceAfter=10
+        )
+
+        highlight_style = ParagraphStyle(
+            'Highlight',
+            parent=styles['Normal'],
+            fontSize=12,
+            leading=18,
+            textColor=dark_blue,
+            backColor=HexColor('#f5f5f5'),
+            borderPadding=10,
+            spaceAfter=15
+        )
+
+        # Extract content from HTML using regex
+        def extract_text(pattern, default=""):
+            match = re.search(pattern, html_content, re.DOTALL)
+            if match:
+                text = match.group(1)
+                # Clean HTML tags
+                text = re.sub(r'<[^>]+>', ' ', text)
+                text = re.sub(r'\s+', ' ', text).strip()
+                return text
+            return default
+
+        # Extract personalization variables
+        first_name = extract_text(r'Prepared for</p>\s*<p[^>]*>([^<]+)</p>', 'Reader')
+        company_name = extract_text(r'at ([^<]+)</p>', 'your company')
+        personalized_hook = extract_text(r'<h3>A Message For You</h3>\s*<p>([^<]+)</p>', '')
+
+        # Extract sections
+        intro_section = extract_text(r'<h2>Redefining the Data Center[^<]*</h2>\s*<p>([^<]+)</p>', '')
+        three_stages = extract_text(r'<h2>Understanding the Three Stages[^<]*</h2>\s*<p>([^<]+)</p>', '')
+        leaders = extract_text(r'<h3>Data Center Leaders[^<]*</h3>\s*<p>([^<]+)</p>', '')
+        challengers = extract_text(r'<h3>Data Center Challengers[^<]*</h3>\s*<p>([^<]+)</p>', '')
+        observers = extract_text(r'<h3>Data Center Observers[^<]*</h3>\s*<p>([^<]+)</p>', '')
+        path_to_leadership = extract_text(r'<h2>The Path to Leadership[^<]*</h2>\s*<p>([^<]+)</p>', '')
+        modernization = extract_text(r'<h2>Modernization Models</h2>\s*<p>([^<]+)</p>', '')
+        why_amd = extract_text(r'<h2>Why AMD[^<]*</h2>\s*<p>([^<]+)</p>', '')
+
+        # Extract case study
+        case_company = extract_text(r'<h3[^>]*>Customer Success: ([^<]+)</h3>', '')
+        case_framing = extract_text(r'<strong>Why this matters[^<]*</strong><br>\s*([^<]+)</div>', '')
+        case_challenge = extract_text(r'<strong>The Challenge:</strong>\s*([^<]+)</p>', '')
+        case_solution = extract_text(r'<strong>The Solution:</strong>\s*([^<]+)</p>', '')
+        case_quote = extract_text(r'"([^"]+)"', '')
+        case_result = extract_text(r'<strong>The Result:</strong>\s*([^<]+)</p>', '')
+
+        # Extract CTA
+        personalized_cta = extract_text(r'<div class="personalized-cta">\s*([^<]+)</div>', '')
+
+        # Build document
+        story = []
+
+        # Cover page
+        story.append(Spacer(1, 2*inch))
+        story.append(Paragraph("AMD", ParagraphStyle('AMDLogo', parent=title_style, fontSize=28, textColor=amd_red)))
+        story.append(Spacer(1, 0.3*inch))
+        story.append(Paragraph("FROM OBSERVERS TO<br/>ENTERPRISE AI READINESS", title_style))
+        story.append(Spacer(1, 0.2*inch))
+        story.append(Paragraph("A Strategic Guide to Data Center Modernization", body_style))
+        story.append(Spacer(1, 1*inch))
+        story.append(Paragraph(f"<b>Prepared for {first_name}</b>", ParagraphStyle('Personalized', parent=body_style, alignment=TA_CENTER, fontSize=14)))
+        if company_name and company_name != 'your company':
+            story.append(Paragraph(f"at {company_name}", ParagraphStyle('Company', parent=body_style, alignment=TA_CENTER)))
+        story.append(PageBreak())
+
+        # Personalized Hook
+        if personalized_hook:
+            story.append(Paragraph("A Message For You", subheading_style))
+            story.append(Paragraph(personalized_hook, highlight_style))
+            story.append(Spacer(1, 0.3*inch))
+
+        # Intro section
+        if intro_section:
+            story.append(Paragraph("Redefining the Data Center: AI Readiness in the Age of Acceleration", heading_style))
+            story.append(Paragraph(intro_section, body_style))
+            story.append(Spacer(1, 0.2*inch))
+
+        # Three Stages
+        if three_stages:
+            story.append(Paragraph("Understanding the Three Stages of Data Center Modernization", heading_style))
+            story.append(Paragraph(three_stages, body_style))
+
+        if leaders:
+            story.append(Paragraph("Data Center Leaders (26%)", subheading_style))
+            story.append(Paragraph(leaders, body_style))
+
+        if challengers:
+            story.append(Paragraph("Data Center Challengers (32%)", subheading_style))
+            story.append(Paragraph(challengers, body_style))
+
+        if observers:
+            story.append(Paragraph("Data Center Observers (42%)", subheading_style))
+            story.append(Paragraph(observers, body_style))
+
+        # Path to Leadership
+        if path_to_leadership:
+            story.append(PageBreak())
+            story.append(Paragraph("The Path to Leadership: Moving Through the Stages", heading_style))
+            story.append(Paragraph(path_to_leadership, body_style))
+
+        # Modernization Models
+        if modernization:
+            story.append(Paragraph("Modernization Models", heading_style))
+            story.append(Paragraph(modernization, body_style))
+
+        # Case Study
+        if case_company:
+            story.append(PageBreak())
+            story.append(Paragraph(f"Customer Success: {case_company}", heading_style))
+            if case_framing:
+                story.append(Paragraph(f"<i>Why this matters for {company_name}: {case_framing}</i>", highlight_style))
+            if case_challenge:
+                story.append(Paragraph(f"<b>The Challenge:</b> {case_challenge}", body_style))
+            if case_solution:
+                story.append(Paragraph(f"<b>The Solution:</b> {case_solution}", body_style))
+            if case_quote:
+                story.append(Paragraph(f'<i>"{case_quote}"</i>', ParagraphStyle('Quote', parent=body_style, leftIndent=20, rightIndent=20)))
+            if case_result:
+                story.append(Paragraph(f"<b>The Result:</b> {case_result}", body_style))
+
+        # Why AMD
+        if why_amd:
+            story.append(Paragraph("Why AMD: Your Strategic Partner", heading_style))
+            story.append(Paragraph(why_amd, body_style))
+
+        # CTA
+        story.append(PageBreak())
+        story.append(Paragraph("Ready to Take the Next Step?", heading_style))
+        if personalized_cta:
+            story.append(Paragraph(personalized_cta, highlight_style))
+        story.append(Spacer(1, 0.5*inch))
+        story.append(Paragraph(f"<b>This guide was personalized for {first_name}</b>", ParagraphStyle('Footer', parent=body_style, alignment=TA_CENTER)))
+
+        # Build PDF
+        doc.build(story)
+        buffer.seek(0)
+        logger.info("Generated PDF using reportlab fallback")
+        return buffer.read()
 
     def _minimal_pdf(self) -> bytes:
         """Generate a minimal valid PDF file."""

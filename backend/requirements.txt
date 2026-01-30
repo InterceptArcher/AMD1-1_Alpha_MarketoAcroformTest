@@ -21,3 +21,4 @@ python-json-logger==2.0.7
 
 # PDF Generation
 reportlab==4.0.7
+weasyprint>=60.0
