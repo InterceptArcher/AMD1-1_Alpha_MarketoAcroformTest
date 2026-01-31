@@ -28,3 +28,11 @@ install.log
 .claude/
 .vscode/
 .idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Supabase
+supabase/.temp/
