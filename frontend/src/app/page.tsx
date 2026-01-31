@@ -113,10 +113,10 @@ function HomeContent() {
         {/* Header */}
         <header className="px-6 py-6 lg:px-12">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div className="text-2xl font-bold tracking-wider">AMD</div>
-            <div className="hidden sm:flex items-center gap-6 text-sm text-white/50">
+            <div className="text-2xl font-bold tracking-wider text-white">AMD</div>
+            <div className="hidden sm:flex items-center gap-6 text-sm text-white/70">
               <span>Enterprise Solutions</span>
-              <span className="w-1 h-1 rounded-full bg-[#00c8aa]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00c8aa]" />
               <span>AI Readiness</span>
             </div>
           </div>
@@ -126,41 +126,41 @@ function HomeContent() {
         <div className="flex-1 flex items-center justify-center px-6 py-12 lg:px-12">
           <div className="w-full max-w-6xl">
             {!personalizationData && !isLoading && (
-              <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+              <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
                 {/* Left Side - Hero */}
                 <div className="animate-fade-in-up">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#00c8aa]/30 bg-[#00c8aa]/10 mb-8">
+                  <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-[#00c8aa]/40 bg-[#00c8aa]/10 mb-8">
                     <span className="w-2 h-2 rounded-full bg-[#00c8aa] animate-pulse" />
-                    <span className="text-sm text-[#00c8aa] font-medium">Free Personalized Ebook</span>
+                    <span className="text-sm text-[#00c8aa] font-semibold">Free Personalized Ebook</span>
                   </div>
 
-                  <p className="text-[#00c8aa] font-semibold uppercase tracking-widest text-sm mb-4">
+                  <p className="text-[#00c8aa] font-bold uppercase tracking-widest text-sm mb-5">
                     From Observers to Leaders
                   </p>
 
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.1] mb-6">
+                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.1] mb-8 text-white">
                     An Enterprise<br />
                     <span className="amd-text-gradient">AI Readiness</span><br />
                     Framework
                   </h1>
 
-                  <p className="text-lg text-white/60 leading-relaxed mb-8 max-w-lg">
+                  <p className="text-lg text-white/80 leading-relaxed mb-10 max-w-lg">
                     Discover where your organization stands on the modernization curve and get a personalized roadmap to AI leadership.
                   </p>
 
                   {/* Stats */}
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-3 gap-8">
                     <div className="animate-fade-in-up stagger-1">
-                      <div className="text-3xl font-bold text-[#00c8aa]">33%</div>
-                      <div className="text-xs text-white/40 mt-1">Leaders</div>
+                      <div className="text-4xl font-bold text-[#00c8aa]">33%</div>
+                      <div className="text-sm text-white/60 mt-2 font-medium">Leaders</div>
                     </div>
                     <div className="animate-fade-in-up stagger-2">
-                      <div className="text-3xl font-bold text-white/80">58%</div>
-                      <div className="text-xs text-white/40 mt-1">Challengers</div>
+                      <div className="text-4xl font-bold text-white">58%</div>
+                      <div className="text-sm text-white/60 mt-2 font-medium">Challengers</div>
                     </div>
                     <div className="animate-fade-in-up stagger-3">
-                      <div className="text-3xl font-bold text-white/50">9%</div>
-                      <div className="text-xs text-white/40 mt-1">Observers</div>
+                      <div className="text-4xl font-bold text-white/70">9%</div>
+                      <div className="text-sm text-white/60 mt-2 font-medium">Observers</div>
                     </div>
                   </div>
                 </div>
@@ -169,8 +169,8 @@ function HomeContent() {
                 <div className="animate-fade-in-up stagger-2">
                   <div className="amd-card p-8 lg:p-10 amd-glow">
                     <div className="mb-8">
-                      <h2 className="text-2xl font-bold mb-2">Get Your Personalized Guide</h2>
-                      <p className="text-white/50">
+                      <h2 className="text-2xl font-bold mb-3 text-white">Get Your Personalized Guide</h2>
+                      <p className="text-white/70 text-base">
                         Tailored insights for your industry and role
                       </p>
                     </div>
@@ -193,11 +193,11 @@ function HomeContent() {
             )}
 
             {error && !personalizationData && !isLoading && (
-              <div className="max-w-md mx-auto amd-card p-6 border-red-500/30 bg-red-500/5">
-                <p className="text-red-400">{error}</p>
+              <div className="max-w-md mx-auto amd-card p-8 border-red-500/30 bg-red-500/5">
+                <p className="text-red-400 text-base">{error}</p>
                 <button
                   onClick={handleReset}
-                  className="mt-4 text-sm text-[#00c8aa] hover:underline"
+                  className="mt-6 text-sm font-semibold text-[#00c8aa] hover:underline"
                 >
                   Try again
                 </button>
@@ -207,13 +207,13 @@ function HomeContent() {
         </div>
 
         {/* Footer */}
-        <footer className="px-6 py-8 lg:px-12 border-t border-white/5">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/30">
+        <footer className="px-6 py-8 lg:px-12 border-t border-white/10">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/50">
             <div>© 2025 Advanced Micro Devices, Inc.</div>
-            <div className="flex items-center gap-6">
-              <span>Privacy</span>
-              <span>Terms</span>
-              <span>Contact</span>
+            <div className="flex items-center gap-8">
+              <span className="hover:text-white/70 cursor-pointer transition-colors">Privacy</span>
+              <span className="hover:text-white/70 cursor-pointer transition-colors">Terms</span>
+              <span className="hover:text-white/70 cursor-pointer transition-colors">Contact</span>
             </div>
           </div>
         </footer>

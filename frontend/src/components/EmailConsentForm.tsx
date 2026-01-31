@@ -168,7 +168,7 @@ export default function EmailConsentForm({ onSubmit, isLoading = false }: EmailC
           className={`amd-input ${emailError ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/50' : ''}`}
         />
         {emailError && (
-          <p className="mt-2 text-sm text-red-400">{emailError}</p>
+          <p className="mt-2 text-sm text-red-400 font-medium">{emailError}</p>
         )}
       </div>
 
@@ -236,7 +236,7 @@ export default function EmailConsentForm({ onSubmit, isLoading = false }: EmailC
       </div>
 
       {/* Consent Checkbox */}
-      <div className="flex items-start gap-3 pt-2">
+      <div className="flex items-start gap-3 pt-3">
         <input
           type="checkbox"
           id="consent"
@@ -246,7 +246,7 @@ export default function EmailConsentForm({ onSubmit, isLoading = false }: EmailC
           disabled={isLoading}
           className="amd-checkbox mt-0.5"
         />
-        <label htmlFor="consent" className="text-sm text-white/50 leading-relaxed cursor-pointer">
+        <label htmlFor="consent" className="text-sm text-white/70 leading-relaxed cursor-pointer">
           I agree to receive my personalized ebook and relevant updates from AMD
         </label>
       </div>
@@ -268,10 +268,11 @@ export default function EmailConsentForm({ onSubmit, isLoading = false }: EmailC
       </button>
 
       {/* Preview text */}
-      <p className="text-center text-xs text-white/30 pt-2">
-        Personalized for {company || 'your company'} in {
-          INDUSTRY_OPTIONS.find(i => i.value === industry)?.label.split(' /')[0] || 'your industry'
-        }
+      <p className="text-center text-sm text-white/50 pt-3">
+        Personalized for <span className="text-white/70 font-medium">{company || 'your company'}</span> in{' '}
+        <span className="text-white/70 font-medium">
+          {INDUSTRY_OPTIONS.find(i => i.value === industry)?.label.split(' /')[0] || 'your industry'}
+        </span>
       </p>
     </form>
   );

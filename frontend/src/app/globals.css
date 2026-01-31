@@ -10,8 +10,8 @@
   --amd-gray: #1a1a2e;
   --amd-cyan: #00c8aa;
   --amd-cyan-dim: rgba(0, 200, 170, 0.15);
-  --amd-light: #d0d0d8;
-  --amd-muted: #8a8a9a;
+  --amd-light: #e8e8ec;
+  --amd-muted: #a0a0b0;
 }
 
 * {
@@ -25,9 +25,10 @@ html {
 body {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   background: var(--amd-dark);
-  color: white;
+  color: #f0f0f5;
   min-height: 100vh;
   overflow-x: hidden;
+  line-height: 1.6;
 }
 
 /* Animated gradient background */
@@ -76,34 +77,41 @@ body {
   background-clip: text;
 }
 
-/* Form styling */
+/* Form styling - improved contrast */
 .amd-input {
-  @apply w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/30;
-  @apply focus:outline-none focus:border-[#00c8aa] focus:ring-1 focus:ring-[#00c8aa]/50;
+  @apply w-full bg-white/[0.08] border border-white/20 rounded-lg px-4 py-3.5 text-white placeholder-white/50;
+  @apply focus:outline-none focus:border-[#00c8aa] focus:ring-2 focus:ring-[#00c8aa]/30;
   @apply transition-all duration-200;
+  font-size: 15px;
 }
 
 .amd-input:hover {
-  @apply border-white/20 bg-white/[0.07];
+  @apply border-white/30 bg-white/[0.1];
 }
 
 .amd-select {
-  @apply w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white;
-  @apply focus:outline-none focus:border-[#00c8aa] focus:ring-1 focus:ring-[#00c8aa]/50;
+  @apply w-full bg-white/[0.08] border border-white/20 rounded-lg px-4 py-3.5 text-white;
+  @apply focus:outline-none focus:border-[#00c8aa] focus:ring-2 focus:ring-[#00c8aa]/30;
   @apply transition-all duration-200 appearance-none cursor-pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238a8a9a'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  font-size: 15px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a0a0b0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 20px;
 }
 
+.amd-select:hover {
+  @apply border-white/30 bg-white/[0.1];
+}
+
 .amd-select option {
   background: #1a1a2e;
   color: white;
+  padding: 12px;
 }
 
 .amd-label {
-  @apply block text-sm font-medium text-white/60 mb-2 tracking-wide;
+  @apply block text-sm font-semibold text-white/80 mb-2.5 tracking-wide;
 }
 
 /* Button styling */
@@ -123,12 +131,12 @@ body {
 }
 
 .amd-button-primary:disabled {
-  @apply bg-white/10 text-white/30 cursor-not-allowed;
+  @apply bg-white/15 text-white/40 cursor-not-allowed;
 }
 
 /* Card styling */
 .amd-card {
-  @apply bg-white/[0.03] border border-white/10 rounded-2xl backdrop-blur-sm;
+  @apply bg-white/[0.04] border border-white/15 rounded-2xl backdrop-blur-sm;
 }
 
 .amd-card-hover {
@@ -136,13 +144,13 @@ body {
 }
 
 .amd-card-hover:hover {
-  @apply border-[#00c8aa]/30 bg-white/[0.05];
-  box-shadow: 0 0 40px rgba(0, 200, 170, 0.08);
+  @apply border-[#00c8aa]/40 bg-white/[0.07];
+  box-shadow: 0 0 40px rgba(0, 200, 170, 0.1);
 }
 
 /* Checkbox styling */
 .amd-checkbox {
-  @apply h-5 w-5 rounded border-2 border-white/20 bg-transparent cursor-pointer;
+  @apply h-5 w-5 rounded border-2 border-white/30 bg-transparent cursor-pointer;
   @apply checked:bg-[#00c8aa] checked:border-[#00c8aa];
   @apply focus:ring-2 focus:ring-[#00c8aa]/50 focus:ring-offset-0 focus:ring-offset-transparent;
   @apply transition-all duration-200;

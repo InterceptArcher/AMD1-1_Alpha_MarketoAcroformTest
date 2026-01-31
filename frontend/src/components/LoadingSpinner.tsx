@@ -160,12 +160,12 @@ export default function LoadingSpinner({ message, userContext }: LoadingSpinnerP
       <div className="text-center">
         {userContext?.firstName ? (
           <>
-            <h2 className="text-2xl font-bold text-white mb-2">
+            <h2 className="text-2xl font-bold text-white mb-3">
               Almost there, <span className="text-[#00c8aa]">{userContext.firstName}</span>!
             </h2>
             {userContext.company && (
-              <p className="text-white/50">
-                Customizing insights for <span className="text-white/70">{userContext.company}</span>
+              <p className="text-white/70 text-base">
+                Customizing insights for <span className="text-white font-medium">{userContext.company}</span>
               </p>
             )}
           </>
@@ -180,7 +180,7 @@ export default function LoadingSpinner({ message, userContext }: LoadingSpinnerP
         <div className="absolute inset-0 rounded-full bg-[#00c8aa]/20 blur-xl animate-pulse" />
 
         {/* Main spinner container */}
-        <div className="relative w-24 h-24 rounded-full border-2 border-white/10 flex items-center justify-center">
+        <div className="relative w-24 h-24 rounded-full border-2 border-white/20 flex items-center justify-center">
           {/* Rotating arc */}
           <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#00c8aa] animate-spin" />
           <div className="absolute inset-2 rounded-full border-2 border-transparent border-r-[#00c8aa]/50 animate-spin [animation-duration:1.5s]" />
@@ -199,19 +199,19 @@ export default function LoadingSpinner({ message, userContext }: LoadingSpinnerP
         <div className="space-y-5">
           {/* Current step indicator */}
           <div className="flex items-center gap-4">
-            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#00c8aa]/10 flex items-center justify-center">
+            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#00c8aa]/15 flex items-center justify-center">
               <span className="text-[#00c8aa] font-bold text-sm">{currentStep + 1}</span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-white transition-all duration-500 truncate">
                 {displayMessage}
               </p>
-              <p className="text-sm text-white/40 mt-0.5">Processing your personalization...</p>
+              <p className="text-sm text-white/60 mt-1">Processing your personalization...</p>
             </div>
           </div>
 
           {/* Progress bar */}
-          <div className="relative h-2 rounded-full bg-white/5 overflow-hidden">
+          <div className="relative h-2.5 rounded-full bg-white/10 overflow-hidden">
             <div
               className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#00c8aa] to-[#00e0be] transition-all duration-700 ease-out progress-shine"
               style={{ width: `${progress}%` }}
@@ -219,29 +219,29 @@ export default function LoadingSpinner({ message, userContext }: LoadingSpinnerP
           </div>
 
           {/* Step counter */}
-          <div className="flex items-center justify-between text-xs text-white/30">
+          <div className="flex items-center justify-between text-sm text-white/50">
             <span>Step {currentStep + 1} of {steps.length}</span>
-            <span>{Math.round(progress)}% complete</span>
+            <span className="font-medium">{Math.round(progress)}% complete</span>
           </div>
 
           {/* Context tags */}
           {userContext && (
-            <div className="pt-4 border-t border-white/5">
-              <p className="text-xs text-white/30 mb-3">Personalizing for:</p>
+            <div className="pt-5 border-t border-white/10">
+              <p className="text-sm text-white/50 mb-3">Personalizing for:</p>
               <div className="flex flex-wrap gap-2">
                 {userContext.industry && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00c8aa]/10 text-[#00c8aa] text-xs font-medium">
+                  <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-[#00c8aa]/15 text-[#00c8aa] text-sm font-medium">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#00c8aa]" />
                     {userContext.industry.replace('_', ' ')}
                   </span>
                 )}
                 {userContext.persona && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 text-white/60 text-xs font-medium">
+                  <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 text-white/80 text-sm font-medium">
                     {userContext.persona.replace('_', ' ')}
                   </span>
                 )}
                 {userContext.goal && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 text-white/60 text-xs font-medium">
+                  <span className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 text-white/80 text-sm font-medium">
                     {userContext.goal.replace('_', ' ')} stage
                   </span>
                 )}
@@ -253,34 +253,34 @@ export default function LoadingSpinner({ message, userContext }: LoadingSpinnerP
 
       {/* Preview section */}
       {userContext && (
-        <div className="w-full max-w-md space-y-3 animate-fade-in-up stagger-2">
-          <p className="text-xs font-medium text-white/40 text-center uppercase tracking-wider">
+        <div className="w-full max-w-md space-y-4 animate-fade-in-up stagger-2">
+          <p className="text-sm font-semibold text-white/60 text-center uppercase tracking-wider">
             Your ebook will include
           </p>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="amd-card p-3 text-center amd-card-hover">
-              <div className="w-8 h-8 rounded-lg bg-[#00c8aa]/10 flex items-center justify-center mx-auto mb-2">
-                <svg className="w-4 h-4 text-[#00c8aa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="amd-card p-4 text-center amd-card-hover">
+              <div className="w-10 h-10 rounded-lg bg-[#00c8aa]/15 flex items-center justify-center mx-auto mb-3">
+                <svg className="w-5 h-5 text-[#00c8aa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
-              <p className="text-xs text-white/50">Industry Insights</p>
+              <p className="text-sm text-white/70 font-medium">Industry Insights</p>
             </div>
-            <div className="amd-card p-3 text-center amd-card-hover">
-              <div className="w-8 h-8 rounded-lg bg-[#00c8aa]/10 flex items-center justify-center mx-auto mb-2">
-                <svg className="w-4 h-4 text-[#00c8aa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="amd-card p-4 text-center amd-card-hover">
+              <div className="w-10 h-10 rounded-lg bg-[#00c8aa]/15 flex items-center justify-center mx-auto mb-3">
+                <svg className="w-5 h-5 text-[#00c8aa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
               </div>
-              <p className="text-xs text-white/50">Best Practices</p>
+              <p className="text-sm text-white/70 font-medium">Best Practices</p>
             </div>
-            <div className="amd-card p-3 text-center amd-card-hover">
-              <div className="w-8 h-8 rounded-lg bg-[#00c8aa]/10 flex items-center justify-center mx-auto mb-2">
-                <svg className="w-4 h-4 text-[#00c8aa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="amd-card p-4 text-center amd-card-hover">
+              <div className="w-10 h-10 rounded-lg bg-[#00c8aa]/15 flex items-center justify-center mx-auto mb-3">
+                <svg className="w-5 h-5 text-[#00c8aa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
               </div>
-              <p className="text-xs text-white/50">Case Studies</p>
+              <p className="text-sm text-white/70 font-medium">Case Studies</p>
             </div>
           </div>
         </div>
