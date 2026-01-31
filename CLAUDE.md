@@ -304,3 +304,92 @@ After generating scripts:
 
 
 FOR EVERY FEATURE AND CODE GENERATED, edit README.md file in root directory to include key feature updates, including rationale for methodologies used.
+
+---
+
+# 📋 PROJECT STATUS & MEMORY (AMD AI Readiness Ebook)
+
+## What This Project Is
+Personalized AMD ebook generator for enterprise AI readiness. Users fill out a form, we enrich their data via APIs, generate personalized content with LLM, and deliver a branded PDF.
+
+## Architecture
+- **Frontend**: Next.js 14 on Vercel (https://amd1-1-alpha.vercel.app)
+- **Backend**: FastAPI on Render (https://amd1-1-backend.onrender.com)
+- **Database**: Supabase (stores enrichment data + PDFs)
+- **PDF**: WeasyPrint (HTML → PDF)
+
+## API Integrations (Configured on Render)
+| API | Purpose | Status |
+|-----|---------|--------|
+| PDL (People Data Labs) | Person + Company enrichment | ✅ Configured |
+| Hunter | Email verification | ✅ Configured |
+| GNews | Company news (5 parallel queries) | ✅ Configured |
+| Apollo | Person data | ✅ Configured |
+| Anthropic Claude | LLM personalization | ✅ Configured |
+| ZoomInfo | Company data | ❌ Not configured |
+
+## Key Endpoints
+- `POST /rad/enrich` - Enrich email + generate personalization
+- `GET /rad/profile/{email}` - Get enriched profile
+- `GET /rad/download/{email}` - Download PDF directly
+- `POST /rad/deliver/{email}` - Email PDF (needs email provider)
+- `GET /rad/status` - Check API configuration
+
+## Personalization Flow
+1. User submits form (name, email, company, industry, role, buying stage)
+2. Backend enriches via PDL, Hunter, GNews
+3. LLM generates 3 personalized sections:
+   - `personalized_hook` - Opening tied to their news/company
+   - `case_study_framing` - Connects case study to their situation
+   - `personalized_cta` - Stage-appropriate call to action
+4. PDF generated with AMD branding
+5. PDF stored in Supabase, download link returned
+
+## Case Study Selection (by industry)
+| User Selects | Case Study |
+|--------------|------------|
+| Healthcare / Life Sciences | PQR Healthcare (HIPAA, compliance) |
+| Financial Services | PQR Financial (security, fraud detection) |
+| Manufacturing / Retail / Energy | Smurfit Westrock (25% cost savings) |
+| Technology / Telecom | KT Cloud (scale, AI/GPU) |
+| Government / Education / Other | PQR General (security, automation) |
+
+## Features Implemented
+- ✅ Multi-field form with industry/role/stage dropdowns
+- ✅ PDL person + company enrichment (separate API calls)
+- ✅ GNews multi-query search (5 queries, theme extraction, sentiment)
+- ✅ Case study selection based on user-selected industry
+- ✅ LLM prompt with mandatory data references
+- ✅ AMD-branded PDF template (dark theme, cyan accents)
+- ✅ Enrichment caching (skip re-enrichment with force_refresh param)
+- ✅ Email service built (needs API key: RESEND_API_KEY or SENDGRID_API_KEY)
+
+## Next Steps (Pending)
+1. **Email Delivery** - Add RESEND_API_KEY to Render env vars
+2. **Adobe/Marketo Integration** - Define flow (Marketo first vs PDF first)
+3. **AcroForm PDF Approach** - Wait for design team templates with form fields
+4. **PDF Condensation** - Reduce to 5-6 pages (later)
+5. **Test Suite Updates** - Many tests failing due to code changes
+
+## Environment Variables Needed on Render
+```
+# Already configured:
+SUPABASE_URL, SUPABASE_KEY
+ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY
+PDL_API_KEY, HUNTER_API_KEY, GNEWS_API_KEY, APOLLO_API_KEY
+
+# Need to add for email:
+RESEND_API_KEY or SENDGRID_API_KEY
+EMAIL_FROM=noreply@yourdomain.com
+```
+
+## Stakeholder Notes
+- Stakeholder suggested AcroForm PDF approach: Design team creates PDF with editable fields, backend fills fields + deletes irrelevant pages + flattens
+- Libraries suggested: pikepdf, pypdf for page manipulation; borb/reportlab for form filling
+- This approach preserves exact design fidelity and embedded fonts
+
+## Git Branch
+- Main branch: `main`
+- Auto-deploys: Render (backend), Vercel needs manual or CI trigger
+
+---
