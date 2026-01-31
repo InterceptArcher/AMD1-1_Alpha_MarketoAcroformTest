@@ -228,381 +228,579 @@ class PDFService:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>An Enterprise AI Readiness Framework</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         @page {
             size: letter;
             margin: 0;
         }
-        @font-face {
-            font-family: 'AMD';
-            src: local('Segoe UI'), local('Helvetica Neue'), local('Arial');
-        }
+
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
+
         body {
-            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.5;
-            color: #ffffff;
+            font-family: 'Plus Jakarta Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #f0f0f5;
             background: #0a0a12;
-            font-size: 10pt;
+            font-size: 11pt;
+            -webkit-font-smoothing: antialiased;
         }
 
         /* AMD Brand Colors */
         :root {
             --amd-cyan: #00c8aa;
+            --amd-cyan-bright: #00e0be;
             --amd-dark: #0a0a12;
             --amd-darker: #050508;
-            --amd-gray: #1a1a2e;
-            --amd-light-gray: #8a8a9a;
+            --amd-card: rgba(255, 255, 255, 0.04);
+            --amd-border: rgba(255, 255, 255, 0.12);
+            --amd-text: #f0f0f5;
+            --amd-text-secondary: #b0b0bc;
+            --amd-text-muted: #8a8a9a;
         }
 
-        /* Cover Page */
+        /* ==================== COVER PAGE ==================== */
         .cover-page {
             min-height: 100vh;
-            background: linear-gradient(135deg, #0a0a12 0%, #0d1a2d 50%, #0a0a12 100%);
-            padding: 60px 50px;
+            background:
+                radial-gradient(ellipse 80% 50% at 20% 40%, rgba(0, 200, 170, 0.12) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 40% at 80% 60%, rgba(0, 100, 200, 0.08) 0%, transparent 50%),
+                linear-gradient(180deg, #0a0a12 0%, #0d1420 50%, #0a0a12 100%);
+            padding: 60px 60px;
             position: relative;
             page-break-after: always;
         }
-        .amd-logo {
-            font-size: 24pt;
-            font-weight: bold;
-            letter-spacing: 2px;
-            margin-bottom: 200px;
+
+        .cover-page::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(0, 200, 170, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            transform: translate(30%, -30%);
         }
-        .cover-subtitle {
+
+        .amd-logo {
+            font-size: 28pt;
+            font-weight: 800;
+            letter-spacing: 4px;
+            margin-bottom: 180px;
+            color: #ffffff;
+        }
+
+        .cover-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(0, 200, 170, 0.15);
+            border: 1px solid rgba(0, 200, 170, 0.4);
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+
+        .cover-badge-text {
+            font-size: 10pt;
             color: var(--amd-cyan);
-            font-size: 13pt;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 15px;
+            letter-spacing: 2px;
         }
-        .cover-title {
-            font-size: 42pt;
-            font-weight: 800;
-            line-height: 1.1;
-            margin-bottom: 30px;
+
+        .cover-subtitle {
+            color: var(--amd-cyan);
+            font-size: 14pt;
+            font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
         }
+
+        .cover-title {
+            font-size: 48pt;
+            font-weight: 800;
+            line-height: 1.05;
+            margin-bottom: 40px;
+            color: #ffffff;
+        }
+
+        .cover-title-gradient {
+            background: linear-gradient(135deg, #ffffff 0%, var(--amd-cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
         .cover-personalized {
             margin-top: 60px;
-            padding: 25px 30px;
-            background: rgba(0, 200, 170, 0.1);
-            border: 1px solid var(--amd-cyan);
-            border-radius: 4px;
-            max-width: 400px;
+            padding: 28px 32px;
+            background: rgba(0, 200, 170, 0.08);
+            border: 1px solid rgba(0, 200, 170, 0.4);
+            border-radius: 12px;
+            max-width: 420px;
+            position: relative;
         }
+
+        .cover-personalized::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--amd-cyan);
+            border-radius: 12px 0 0 12px;
+        }
+
         .cover-personalized-label {
             font-size: 9pt;
             color: var(--amd-cyan);
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-        }
-        .cover-personalized-name {
-            font-size: 18pt;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-        .cover-personalized-role {
-            font-size: 11pt;
-            color: var(--amd-light-gray);
+            letter-spacing: 2px;
+            font-weight: 600;
+            margin-bottom: 12px;
         }
 
-        /* Content Pages */
+        .cover-personalized-name {
+            font-size: 20pt;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #ffffff;
+        }
+
+        .cover-personalized-role {
+            font-size: 12pt;
+            color: var(--amd-text-secondary);
+        }
+
+        /* ==================== CONTENT PAGES ==================== */
         .content-page {
             background: var(--amd-dark);
-            padding: 50px;
+            padding: 55px 60px;
             min-height: 100vh;
             page-break-after: always;
         }
+
         .content-page:last-child {
             page-break-after: auto;
         }
 
-        /* Section Headers */
+        /* ==================== SECTION HEADERS ==================== */
         .section-header {
-            margin-bottom: 30px;
+            margin-bottom: 35px;
         }
+
         .section-header h2 {
-            font-size: 26pt;
+            font-size: 28pt;
             font-weight: 800;
-            line-height: 1.2;
-            margin-bottom: 20px;
-            text-transform: uppercase;
+            line-height: 1.15;
+            margin-bottom: 0;
+            color: #ffffff;
         }
+
         .section-header::before {
             content: '';
             display: block;
-            width: 60px;
+            width: 50px;
             height: 4px;
-            background: var(--amd-cyan);
-            margin-bottom: 25px;
+            background: linear-gradient(90deg, var(--amd-cyan) 0%, var(--amd-cyan-bright) 100%);
+            margin-bottom: 28px;
+            border-radius: 2px;
         }
 
-        /* Personalized Hook Section */
+        /* ==================== PERSONALIZED HOOK ==================== */
         .personalized-hook {
-            background: linear-gradient(135deg, rgba(0, 200, 170, 0.15) 0%, rgba(0, 200, 170, 0.05) 100%);
+            background: linear-gradient(135deg, rgba(0, 200, 170, 0.12) 0%, rgba(0, 200, 170, 0.04) 100%);
+            border: 1px solid rgba(0, 200, 170, 0.25);
             border-left: 4px solid var(--amd-cyan);
-            padding: 30px;
-            margin: 30px 0;
+            border-radius: 0 12px 12px 0;
+            padding: 32px 36px;
+            margin: 35px 0;
             font-size: 12pt;
-            line-height: 1.6;
+            line-height: 1.7;
         }
+
         .personalized-hook-label {
             color: var(--amd-cyan);
             font-size: 10pt;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
+            letter-spacing: 2px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        /* Statistics Grid */
+        .personalized-hook-label::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--amd-cyan);
+            border-radius: 50%;
+        }
+
+        /* ==================== STATISTICS ==================== */
         .stats-grid {
             display: flex;
             justify-content: space-between;
-            gap: 30px;
-            margin: 40px 0;
+            gap: 35px;
+            margin: 45px 0;
         }
+
         .stat-item {
             text-align: center;
             flex: 1;
+            padding: 25px;
+            background: var(--amd-card);
+            border: 1px solid var(--amd-border);
+            border-radius: 12px;
         }
+
         .stat-number {
-            font-size: 48pt;
+            font-size: 52pt;
             font-weight: 300;
             color: var(--amd-cyan);
             line-height: 1;
-        }
-        .stat-suffix {
-            font-size: 24pt;
-            color: var(--amd-cyan);
-        }
-        .stat-label {
-            font-size: 9pt;
-            color: var(--amd-light-gray);
-            margin-top: 10px;
-            line-height: 1.4;
+            letter-spacing: -2px;
         }
 
-        /* Info Boxes */
-        .info-box {
-            background: rgba(0, 200, 170, 0.08);
-            border: 1px solid rgba(0, 200, 170, 0.3);
-            padding: 25px;
-            margin: 25px 0;
+        .stat-suffix {
+            font-size: 26pt;
+            color: var(--amd-cyan);
         }
+
+        .stat-label {
+            font-size: 10pt;
+            color: var(--amd-text-secondary);
+            margin-top: 14px;
+            line-height: 1.5;
+        }
+
+        .stat-label strong {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        /* ==================== INFO BOXES ==================== */
+        .info-box {
+            background: var(--amd-card);
+            border: 1px solid var(--amd-border);
+            border-radius: 12px;
+            padding: 28px 32px;
+            margin: 30px 0;
+        }
+
         .info-box-header {
             display: flex;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 18px;
         }
+
         .info-box-icon {
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
+            background: rgba(0, 200, 170, 0.15);
             border: 2px solid var(--amd-cyan);
-            border-radius: 50%;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 15px;
-            font-size: 16pt;
-        }
-        .info-box-title {
-            font-size: 12pt;
-            font-weight: 700;
-            text-transform: uppercase;
+            margin-right: 16px;
+            font-size: 18pt;
+            color: var(--amd-cyan);
         }
 
-        /* Two Column Layout */
+        .info-box-title {
+            font-size: 13pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ffffff;
+        }
+
+        /* ==================== TWO COLUMN LAYOUT ==================== */
         .two-column {
             display: flex;
-            gap: 40px;
+            gap: 30px;
         }
+
         .column {
             flex: 1;
         }
+
         .column-box {
-            background: rgba(0, 200, 170, 0.05);
-            border: 1px solid rgba(0, 200, 170, 0.2);
-            padding: 25px;
+            background: var(--amd-card);
+            border: 1px solid var(--amd-border);
+            border-radius: 12px;
+            padding: 28px;
             height: 100%;
         }
+
         .column-box h4 {
             color: var(--amd-cyan);
             font-size: 11pt;
             font-weight: 700;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
             text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--amd-border);
         }
+
         .column-item {
-            margin-bottom: 20px;
+            margin-bottom: 22px;
         }
+
+        .column-item:last-child {
+            margin-bottom: 0;
+        }
+
         .column-item-number {
             color: var(--amd-cyan);
-            font-size: 14pt;
+            font-size: 16pt;
             font-weight: 300;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
+            opacity: 0.8;
         }
+
         .column-item-title {
             font-weight: 700;
             margin-bottom: 8px;
-        }
-        .column-item-text {
-            font-size: 9pt;
-            color: var(--amd-light-gray);
-            line-height: 1.5;
+            color: #ffffff;
+            font-size: 11pt;
         }
 
-        /* Case Study */
+        .column-item-text {
+            font-size: 10pt;
+            color: var(--amd-text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ==================== CASE STUDY ==================== */
         .case-study {
-            background: linear-gradient(180deg, #0d1a2d 0%, var(--amd-dark) 100%);
-            padding: 40px;
-            margin: 30px 0;
+            background: linear-gradient(180deg, rgba(13, 26, 45, 0.8) 0%, var(--amd-dark) 100%);
+            border: 1px solid var(--amd-border);
+            border-radius: 16px;
+            padding: 45px;
+            margin: 35px 0;
             page-break-inside: avoid;
         }
+
         .case-study-label {
             color: var(--amd-cyan);
             font-size: 10pt;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
+
+        .case-study-label::before {
+            content: '';
+            width: 24px;
+            height: 2px;
+            background: var(--amd-cyan);
+        }
+
         .case-study-title {
-            font-size: 22pt;
+            font-size: 24pt;
             font-weight: 800;
-            margin-bottom: 25px;
-            text-transform: uppercase;
+            margin-bottom: 28px;
+            color: #ffffff;
         }
+
         .case-study-framing {
             background: rgba(0, 200, 170, 0.1);
             border-left: 4px solid var(--amd-cyan);
-            padding: 20px;
-            margin-bottom: 25px;
+            border-radius: 0 10px 10px 0;
+            padding: 22px 26px;
+            margin-bottom: 28px;
             font-style: italic;
+            color: var(--amd-text-secondary);
         }
+
         .case-study-framing strong {
             color: var(--amd-cyan);
             font-style: normal;
+            font-weight: 600;
         }
 
-        /* Quote Block */
+        /* ==================== QUOTE BLOCK ==================== */
         .quote-block {
-            background: rgba(0, 0, 0, 0.3);
-            padding: 30px 40px;
-            margin: 30px 0;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            padding: 35px 40px;
+            margin: 32px 0;
             position: relative;
+            border: 1px solid rgba(0, 200, 170, 0.2);
         }
+
         .quote-mark {
-            font-size: 72pt;
+            font-size: 80pt;
             color: var(--amd-cyan);
-            opacity: 0.3;
+            opacity: 0.2;
             position: absolute;
-            top: -10px;
-            left: 20px;
+            top: -20px;
+            left: 25px;
             font-family: Georgia, serif;
+            line-height: 1;
         }
+
         .quote-text {
             font-size: 14pt;
-            line-height: 1.6;
+            line-height: 1.7;
             font-style: italic;
             margin-bottom: 20px;
             position: relative;
             z-index: 1;
+            color: var(--amd-text);
         }
+
         .quote-author {
             color: var(--amd-cyan);
             font-weight: 700;
             font-style: normal;
-        }
-        .quote-role {
-            color: var(--amd-light-gray);
-            font-size: 10pt;
+            font-size: 11pt;
         }
 
-        /* CTA Section */
+        /* ==================== CTA SECTION ==================== */
         .cta-section {
-            background: linear-gradient(135deg, #0d1a2d 0%, #0a2a3a 100%);
+            background: linear-gradient(135deg, rgba(0, 200, 170, 0.12) 0%, rgba(0, 100, 200, 0.08) 100%);
+            border: 1px solid rgba(0, 200, 170, 0.3);
+            border-radius: 16px;
             padding: 50px;
             text-align: center;
-            margin-top: 40px;
+            margin-top: 45px;
         }
+
         .cta-title {
-            font-size: 20pt;
+            font-size: 22pt;
             font-weight: 700;
             margin-bottom: 20px;
+            color: #ffffff;
         }
+
         .cta-personalized {
             font-size: 12pt;
-            max-width: 600px;
-            margin: 0 auto 30px;
-            color: var(--amd-light-gray);
+            max-width: 550px;
+            margin: 0 auto 32px;
+            color: var(--amd-text-secondary);
+            line-height: 1.6;
         }
+
         .cta-button {
             display: inline-block;
-            background: var(--amd-cyan);
+            background: linear-gradient(135deg, var(--amd-cyan) 0%, var(--amd-cyan-bright) 100%);
             color: var(--amd-dark);
-            padding: 15px 40px;
+            padding: 16px 45px;
             font-weight: 700;
             text-transform: uppercase;
             text-decoration: none;
-            letter-spacing: 1px;
-            transition: all 0.3s;
+            letter-spacing: 1.5px;
+            border-radius: 8px;
+            font-size: 11pt;
         }
 
-        /* Footer Navigation */
+        /* ==================== PAGE FOOTER ==================== */
         .page-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-top: 30px;
-            margin-top: 40px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            font-size: 8pt;
-            color: var(--amd-light-gray);
-        }
-        .footer-nav {
-            display: flex;
-            gap: 30px;
-        }
-        .footer-nav-item {
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .footer-nav-item.active {
-            color: var(--amd-cyan);
-            font-weight: 700;
-        }
-        .page-number {
-            font-size: 10pt;
+            padding-top: 35px;
+            margin-top: 45px;
+            border-top: 1px solid var(--amd-border);
+            font-size: 9pt;
+            color: var(--amd-text-muted);
         }
 
-        /* Paragraph Styles */
-        p {
-            margin-bottom: 15px;
-            color: #d0d0d8;
+        .page-footer strong {
+            color: var(--amd-text);
         }
+
+        /* ==================== TYPOGRAPHY ==================== */
+        p {
+            margin-bottom: 16px;
+            color: var(--amd-text-secondary);
+            font-size: 11pt;
+            line-height: 1.7;
+        }
+
         strong {
             color: #ffffff;
+            font-weight: 600;
         }
 
-        /* List Styles */
+        /* ==================== LISTS ==================== */
         ul {
-            margin: 15px 0;
-            padding-left: 20px;
+            margin: 18px 0;
+            padding-left: 0;
+            list-style: none;
         }
+
         li {
-            margin-bottom: 10px;
-            color: #d0d0d8;
+            margin-bottom: 12px;
+            color: var(--amd-text-secondary);
+            padding-left: 24px;
+            position: relative;
+            font-size: 10pt;
+            line-height: 1.5;
         }
-        li::marker {
+
+        li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 8px;
+            height: 8px;
+            background: var(--amd-cyan);
+            border-radius: 50%;
+            opacity: 0.7;
+        }
+
+        /* ==================== TOC STYLING ==================== */
+        .toc-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 20px;
+            background: var(--amd-card);
+            border: 1px solid var(--amd-border);
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .toc-number {
+            font-size: 32pt;
+            font-weight: 300;
             color: var(--amd-cyan);
+            line-height: 1;
+            min-width: 50px;
+        }
+
+        .toc-content {
+            flex: 1;
+        }
+
+        .toc-title {
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 4px;
+            font-size: 11pt;
+        }
+
+        .toc-subtitle {
+            font-size: 10pt;
+            color: var(--amd-text-muted);
         }
     </style>
 </head>
@@ -610,8 +808,15 @@ class PDFService:
     <!-- COVER PAGE -->
     <div class="cover-page">
         <div class="amd-logo">AMD</div>
+
+        <div class="cover-badge">
+            <span class="cover-badge-text">Enterprise Guide</span>
+        </div>
+
         <div class="cover-subtitle">From Observers to Leaders</div>
-        <h1 class="cover-title">An<br>Enterprise<br>AI Readiness<br>Framework</h1>
+
+        <h1 class="cover-title">An Enterprise<br><span class="cover-title-gradient">AI Readiness</span><br>Framework</h1>
+
         <div class="cover-personalized">
             <div class="cover-personalized-label">Prepared Exclusively For</div>
             <div class="cover-personalized-name">$first_name $last_name</div>
@@ -624,30 +829,44 @@ class PDFService:
         <div class="section-header">
             <h2>Table of Contents</h2>
         </div>
-        <div class="stats-grid" style="margin-top: 50px;">
-            <div class="stat-item">
-                <div class="stat-number">3</div>
-                <div class="stat-label"><strong>Redefining the Data Center</strong><br>AI Readiness in the Age of Acceleration</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number">4</div>
-                <div class="stat-label"><strong>Understanding the Three Stages</strong><br>Data Center Modernization Framework</div>
+
+        <div class="toc-item">
+            <div class="toc-number">01</div>
+            <div class="toc-content">
+                <div class="toc-title">Redefining the Data Center</div>
+                <div class="toc-subtitle">AI Readiness in the Age of Acceleration</div>
             </div>
         </div>
-        <div class="stats-grid">
-            <div class="stat-item">
-                <div class="stat-number">8</div>
-                <div class="stat-label"><strong>The Path to Leadership</strong><br>Moving Through the Stages</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number">9</div>
-                <div class="stat-label"><strong>Modernization in Action</strong><br>Customer Success Snapshots</div>
+
+        <div class="toc-item">
+            <div class="toc-number">02</div>
+            <div class="toc-content">
+                <div class="toc-title">Understanding the Three Stages</div>
+                <div class="toc-subtitle">Data Center Modernization Framework</div>
             </div>
         </div>
-        <div class="stats-grid" style="justify-content: flex-start;">
-            <div class="stat-item" style="flex: 0 0 auto;">
-                <div class="stat-number">15</div>
-                <div class="stat-label"><strong>Why AMD</strong><br>Your Strategic Partner for AI Modernization</div>
+
+        <div class="toc-item">
+            <div class="toc-number">03</div>
+            <div class="toc-content">
+                <div class="toc-title">The Path to Leadership</div>
+                <div class="toc-subtitle">Moving Through the Stages</div>
+            </div>
+        </div>
+
+        <div class="toc-item">
+            <div class="toc-number">04</div>
+            <div class="toc-content">
+                <div class="toc-title">Modernization in Action</div>
+                <div class="toc-subtitle">Customer Success: $case_study_company</div>
+            </div>
+        </div>
+
+        <div class="toc-item">
+            <div class="toc-number">05</div>
+            <div class="toc-content">
+                <div class="toc-title">Why AMD</div>
+                <div class="toc-subtitle">Your Strategic Partner for AI Modernization</div>
             </div>
         </div>
     </div>
@@ -655,12 +874,12 @@ class PDFService:
     <!-- PERSONALIZED INTRO -->
     <div class="content-page">
         <div class="section-header">
-            <h2>Redefining the Data Center:<br>AI Readiness in the Age of Acceleration</h2>
+            <h2>Redefining the Data Center</h2>
         </div>
 
         <div class="personalized-hook">
             <div class="personalized-hook-label">A Message for $first_name</div>
-            <p style="margin: 0; color: white;">$personalized_hook</p>
+            <p style="margin: 0; color: #ffffff;">$personalized_hook</p>
         </div>
 
         <p>$intro_section</p>
@@ -668,7 +887,11 @@ class PDFService:
         <div class="stats-grid" style="margin-top: 50px;">
             <div class="stat-item">
                 <div class="stat-number">97<span class="stat-suffix">%</span></div>
-                <div class="stat-label">of the data center capacity was occupied as of March 2023 in the top North American markets.</div>
+                <div class="stat-label">of data center capacity was occupied as of March 2023 in top North American markets</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">2.5<span class="stat-suffix">x</span></div>
+                <div class="stat-label">growth in AI workloads expected over the next 3 years</div>
             </div>
         </div>
     </div>
@@ -676,7 +899,7 @@ class PDFService:
     <!-- THREE STAGES -->
     <div class="content-page">
         <div class="section-header">
-            <h2>Understanding the Three Stages of<br>Data Center Modernization</h2>
+            <h2>Understanding the Three Stages</h2>
         </div>
 
         <p>$three_stages_intro</p>
@@ -684,15 +907,15 @@ class PDFService:
         <div class="stats-grid" style="margin-top: 40px;">
             <div class="stat-item">
                 <div class="stat-number">33<span class="stat-suffix">%</span></div>
-                <div class="stat-label">of organizations—<br><strong>data center Leaders</strong>—<br>have fully modernized in the past two years</div>
+                <div class="stat-label"><strong>Leaders</strong><br>Fully modernized in the past two years</div>
             </div>
             <div class="stat-item">
                 <div class="stat-number">58<span class="stat-suffix">%</span></div>
-                <div class="stat-label">of organizations—<br><strong>data center Challengers</strong>—<br>are currently undertaking modernization initiatives</div>
+                <div class="stat-label"><strong>Challengers</strong><br>Currently undertaking modernization</div>
             </div>
             <div class="stat-item">
                 <div class="stat-number">9<span class="stat-suffix">%</span></div>
-                <div class="stat-label">of organizations—<br><strong>data center Observers</strong>—<br>plan to modernize within the next two years</div>
+                <div class="stat-label"><strong>Observers</strong><br>Planning to modernize within two years</div>
             </div>
         </div>
     </div>
@@ -705,34 +928,34 @@ class PDFService:
 
         <p>$leaders_section</p>
 
-        <div class="two-column" style="margin-top: 30px;">
+        <div class="two-column" style="margin-top: 35px;">
             <div class="column">
                 <div class="column-box">
-                    <h4>Advantages for Leaders</h4>
+                    <h4>Advantages</h4>
                     <div class="column-item">
                         <div class="column-item-number">01</div>
-                        <div class="column-item-title">Efficiencies</div>
-                        <div class="column-item-text">They can reduce operational costs by allocating more time and budget to innovation rather than system maintenance.</div>
+                        <div class="column-item-title">Operational Efficiencies</div>
+                        <div class="column-item-text">Reduce costs by allocating more budget to innovation rather than system maintenance.</div>
                     </div>
                     <div class="column-item">
                         <div class="column-item-number">02</div>
-                        <div class="column-item-title">Agility and competitive advantage</div>
-                        <div class="column-item-text">AI helps widen the gap between the competition through enhanced decision-making, customer experiences, and innovative products.</div>
+                        <div class="column-item-title">Competitive Advantage</div>
+                        <div class="column-item-text">AI widens the gap through enhanced decision-making and innovative products.</div>
                     </div>
                 </div>
             </div>
             <div class="column">
                 <div class="column-box">
-                    <h4>Risks</h4>
+                    <h4>Risks to Manage</h4>
                     <div class="column-item">
                         <div class="column-item-number">01</div>
-                        <div class="column-item-title">Unforeseen costs</div>
-                        <div class="column-item-text">The top reason organizations overspend on digital infrastructure is technical debt.</div>
+                        <div class="column-item-title">Technical Debt</div>
+                        <div class="column-item-text">The top reason organizations overspend on digital infrastructure.</div>
                     </div>
                     <div class="column-item">
                         <div class="column-item-number">02</div>
-                        <div class="column-item-title">Integration challenges</div>
-                        <div class="column-item-text">Integration is the most significant technical challenge for AI adoption across all organizations.</div>
+                        <div class="column-item-title">Integration Complexity</div>
+                        <div class="column-item-text">The most significant technical challenge for AI adoption.</div>
                     </div>
                 </div>
             </div>
@@ -742,33 +965,40 @@ class PDFService:
     <!-- CHALLENGERS & OBSERVERS -->
     <div class="content-page">
         <div class="section-header">
-            <h2>Data Center Challengers</h2>
+            <h2>Challengers &amp; Observers</h2>
         </div>
 
-        <p>$challengers_section</p>
-
-        <div style="margin-top: 50px;">
-            <div class="section-header">
-                <h2>Data Center Observers</h2>
+        <div class="info-box">
+            <div class="info-box-header">
+                <div class="info-box-icon">⚡</div>
+                <div class="info-box-title">Challengers (58%)</div>
             </div>
-            <p>$observers_section</p>
+            <p style="margin: 0;">$challengers_section</p>
+        </div>
+
+        <div class="info-box" style="margin-top: 25px;">
+            <div class="info-box-header">
+                <div class="info-box-icon">🔭</div>
+                <div class="info-box-title">Observers (9%)</div>
+            </div>
+            <p style="margin: 0;">$observers_section</p>
         </div>
     </div>
 
     <!-- PATH TO LEADERSHIP -->
     <div class="content-page">
         <div class="section-header">
-            <h2>The Path to Leadership:<br>Moving Through the Stages</h2>
+            <h2>The Path to Leadership</h2>
         </div>
 
         <p>$path_to_leadership</p>
 
-        <div class="info-box" style="margin-top: 30px;">
+        <div class="info-box" style="margin-top: 35px;">
             <div class="info-box-header">
                 <div class="info-box-icon">⚙</div>
                 <div class="info-box-title">Overcoming Barriers</div>
             </div>
-            <p style="margin: 0;">As AI technology matures and organizations gain more experience, some early challenges are being solved. But significant barriers to adoption remain, including legacy infrastructure, skill gaps, and data security concerns.</p>
+            <p style="margin: 0;">As AI technology matures, some early challenges are being solved. But significant barriers remain: legacy infrastructure, skill gaps, and data security concerns. The organizations that address these proactively are the ones that reach Leadership status.</p>
         </div>
     </div>
 
@@ -780,10 +1010,10 @@ class PDFService:
 
         <p>$modernization_models</p>
 
-        <div class="two-column" style="margin-top: 30px;">
+        <div class="two-column" style="margin-top: 35px;">
             <div class="column">
                 <div class="column-box">
-                    <h4>Factors Driving In-Place Modernization</h4>
+                    <h4>Modernize In-Place</h4>
                     <ul>
                         <li>Lower capital expenditures</li>
                         <li>More predictable costs</li>
@@ -795,13 +1025,13 @@ class PDFService:
             </div>
             <div class="column">
                 <div class="column-box">
-                    <h4>Factors Driving Refactor-and-Shift</h4>
+                    <h4>Refactor &amp; Shift</h4>
                     <ul>
                         <li>Accelerated innovation</li>
-                        <li>Agile development</li>
+                        <li>Agile development cycles</li>
                         <li>Faster AI tool integration</li>
                         <li>More efficient scalability</li>
-                        <li>Personalized customer experiences</li>
+                        <li>Modern developer experience</li>
                     </ul>
                 </div>
             </div>
@@ -811,7 +1041,7 @@ class PDFService:
     <!-- CASE STUDY -->
     <div class="content-page">
         <div class="case-study">
-            <div class="case-study-label">Case Study</div>
+            <div class="case-study-label">Customer Success</div>
             <h3 class="case-study-title">$case_study_title</h3>
 
             <div class="case-study-framing">
@@ -825,17 +1055,17 @@ class PDFService:
             <div class="quote-block">
                 <div class="quote-mark">"</div>
                 <div class="quote-text">$case_study_quote</div>
-                <div class="quote-author">$case_study_quote_author</div>
+                <div class="quote-author">— $case_study_quote_author</div>
             </div>
 
             <p><strong>The Result:</strong> $case_study_result</p>
         </div>
     </div>
 
-    <!-- ASSESSMENT QUESTIONS -->
+    <!-- ASSESSMENT -->
     <div class="content-page">
         <div class="section-header">
-            <h2>Where Do You Stand on the<br>Modernization Curve?</h2>
+            <h2>Where Do You Stand?</h2>
         </div>
 
         <p>$assessment_questions</p>
@@ -844,7 +1074,7 @@ class PDFService:
     <!-- WHY AMD -->
     <div class="content-page">
         <div class="section-header">
-            <h2>Why AMD: Your Strategic Partner<br>for Data Center and AI Modernization</h2>
+            <h2>Why AMD</h2>
         </div>
 
         <p>$why_amd</p>
@@ -852,15 +1082,15 @@ class PDFService:
         <div class="cta-section">
             <div class="cta-title">Ready to Accelerate Your AI Journey?</div>
             <div class="cta-personalized">$personalized_cta</div>
-            <a href="https://www.amd.com/en/solutions/data-center.html" class="cta-button">Explore AMD AI Solutions →</a>
+            <a href="https://www.amd.com/en/solutions/data-center.html" class="cta-button">Explore AMD Solutions →</a>
         </div>
 
         <div class="page-footer">
-            <div style="font-size: 9pt;">
-                <p style="margin: 0;">Personalized for <strong>$first_name</strong> at <strong>$company_name</strong></p>
+            <div>
+                <p style="margin: 0; font-size: 10pt;">Personalized for <strong>$first_name</strong> at <strong>$company_name</strong></p>
                 <p style="margin: 5px 0 0 0;">Generated on $generated_date</p>
             </div>
-            <div style="font-size: 8pt; color: var(--amd-light-gray);">
+            <div>
                 © 2025 Advanced Micro Devices, Inc.
             </div>
         </div>
