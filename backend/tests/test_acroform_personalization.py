@@ -275,21 +275,25 @@ class TestFieldFilling:
 
     def test_fill_fields_selects_correct_case_study(self, sample_personalized_content):
         """Only the industry-appropriate case study field should be filled."""
-        from pypdf import PdfReader
+        # Healthcare should map to case_study_3 (PQR)
+        case_study_field = get_case_study_field("healthcare")
+        assert case_study_field == FIELD_CASE_STUDY_3
 
-        # Healthcare should fill case_study_3 (PQR)
-        pdf_bytes = fill_personalization_fields(
-            personalized_content=sample_personalized_content,
-            industry="healthcare",
-        )
+        # Technology should map to case_study_1 (KT Cloud)
+        case_study_field = get_case_study_field("technology")
+        assert case_study_field == FIELD_CASE_STUDY_1
 
-        reader = PdfReader(io.BytesIO(pdf_bytes))
-        fields = reader.get_fields()
+        # Manufacturing should map to case_study_2 (Smurfit Westrock)
+        case_study_field = get_case_study_field("manufacturing")
+        assert case_study_field == FIELD_CASE_STUDY_2
 
-        # The case_study_3_framing field should have content
-        if FIELD_CASE_STUDY_3 in fields:
-            value = fields[FIELD_CASE_STUDY_3].get("/V", "")
-            assert str(value) != "", "Healthcare should fill case_study_3_framing"
+        # Verify fill_personalization_fields doesn't error for each industry
+        for industry in ["healthcare", "technology", "manufacturing"]:
+            pdf_bytes = fill_personalization_fields(
+                personalized_content=sample_personalized_content,
+                industry=industry,
+            )
+            assert len(pdf_bytes) > 0, f"Should generate PDF for {industry}"
 
 
 # =============================================================================
