@@ -54,38 +54,50 @@ function HomeContent() {
       goal: inputs.goal,
     });
 
+    // Minimum loading time to show personalized loading experience
+    // Can be disabled via env var for testing (NEXT_PUBLIC_SKIP_LOADING_DELAY=true)
+    const skipDelay = process.env.NEXT_PUBLIC_SKIP_LOADING_DELAY === 'true';
+    const minLoadingMs = skipDelay ? 0 : 12000;
+    const minLoadingTime = new Promise(resolve => setTimeout(resolve, minLoadingMs));
+
     try {
       const apiUrl = getApiUrl();
 
-      const response = await fetch(`${apiUrl}/rad/enrich`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: inputs.email,
-          firstName: inputs.firstName,
-          lastName: inputs.lastName,
-          company: inputs.company,
-          companySize: inputs.companySize,
-          goal: inputs.goal,
-          persona: inputs.persona,
-          industry: inputs.industry,
-          cta: cta || 'default',
-        }),
-      });
+      // Run API calls and minimum loading time in parallel
+      const apiCall = async () => {
+        const response = await fetch(`${apiUrl}/rad/enrich`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: inputs.email,
+            firstName: inputs.firstName,
+            lastName: inputs.lastName,
+            company: inputs.company,
+            companySize: inputs.companySize,
+            goal: inputs.goal,
+            persona: inputs.persona,
+            industry: inputs.industry,
+            cta: cta || 'default',
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`Failed to start personalization: ${response.status}`);
-      }
+        if (!response.ok) {
+          throw new Error(`Failed to start personalization: ${response.status}`);
+        }
 
-      const profileResponse = await fetch(`${apiUrl}/rad/profile/${encodeURIComponent(inputs.email)}`);
+        const profileResponse = await fetch(`${apiUrl}/rad/profile/${encodeURIComponent(inputs.email)}`);
 
-      if (!profileResponse.ok) {
-        throw new Error(`Failed to fetch profile: ${profileResponse.status}`);
-      }
+        if (!profileResponse.ok) {
+          throw new Error(`Failed to fetch profile: ${profileResponse.status}`);
+        }
 
-      const profileData = await profileResponse.json();
+        return profileResponse.json();
+      };
+
+      // Wait for both API and minimum loading time
+      const [profileData] = await Promise.all([apiCall(), minLoadingTime]);
 
       setPersonalizationData({
         intro_hook: profileData.personalization?.intro_hook || 'Welcome!',

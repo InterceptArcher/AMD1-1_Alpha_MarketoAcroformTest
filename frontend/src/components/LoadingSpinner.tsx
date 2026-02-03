@@ -104,6 +104,10 @@ export default function LoadingSpinner({ message, userContext }: LoadingSpinnerP
       steps.push('Creating your personalized ebook...');
     }
 
+    // Enrichment steps
+    steps.push('Gathering company intelligence...');
+    steps.push('Analyzing recent industry news...');
+
     // Add industry-specific messages
     if (userContext?.industry && INDUSTRY_MESSAGES[userContext.industry]) {
       steps.push(...INDUSTRY_MESSAGES[userContext.industry]);
@@ -119,6 +123,10 @@ export default function LoadingSpinner({ message, userContext }: LoadingSpinnerP
       steps.push(GOAL_MESSAGES[userContext.goal]);
     }
 
+    // Final steps
+    steps.push('Selecting relevant case studies...');
+    steps.push('Generating personalized insights with AI...');
+    steps.push('Formatting your custom PDF...');
     steps.push('Finalizing your personalized content...');
 
     return steps;
@@ -132,14 +140,14 @@ export default function LoadingSpinner({ message, userContext }: LoadingSpinnerP
       return;
     }
 
-    // Cycle through personalized messages
+    // Cycle through personalized messages (slower pace for better readability)
     const interval = setInterval(() => {
       setCurrentStep((prev) => {
         const next = (prev + 1) % steps.length;
         setDisplayMessage(steps[next]);
         return next;
       });
-    }, 2500);
+    }, 3500);
 
     // Set initial message
     setDisplayMessage(steps[0]);
