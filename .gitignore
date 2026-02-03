@@ -33,6 +33,11 @@ install.log
 __pycache__/
 *.pyc
 *.pyo
+.venv/
+venv/
+
+# Generated test outputs (PDFs)
+backend/test_outputs/
 
 # Supabase
 supabase/.temp/

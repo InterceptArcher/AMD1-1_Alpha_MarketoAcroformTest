@@ -175,9 +175,8 @@ def fill_personalization_fields(
     reader = pypdf.PdfReader(str(TEMPLATE_WITH_FIELDS))
     writer = pypdf.PdfWriter()
 
-    # Copy all pages
-    for page in reader.pages:
-        writer.add_page(page)
+    # Clone entire document (preserves AcroForm structure)
+    writer.clone_document_from_reader(reader)
 
     # Prepare field values
     case_study_field = get_case_study_field(industry)
