@@ -114,7 +114,7 @@ function HomeContent() {
         {/* Header */}
         <header className="px-6 py-6 lg:px-12">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div className="text-2xl font-bold tracking-wider text-white">AMD</div>
+            <div className="text-2xl font-bold tracking-[0.2em] text-white" style={{ fontFamily: "'Gill Sans', 'Gill Sans MT', 'Avenir', 'Helvetica Neue', Arial, sans-serif" }}>AMD</div>
             <div className="hidden sm:flex items-center gap-6 text-sm text-white/70">
               <span>Enterprise Solutions</span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#00c8aa]" />

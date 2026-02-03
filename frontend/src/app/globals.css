@@ -2,7 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+/* AMD Brand Fonts: Roboto Condensed (headings), Source Sans 3 (body) */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
 
 :root {
   --amd-dark: #0a0a12;
@@ -12,6 +13,10 @@
   --amd-cyan-dim: rgba(0, 200, 170, 0.15);
   --amd-light: #e8e8ec;
   --amd-muted: #a0a0b0;
+
+  /* Font families */
+  --font-heading: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'Source Sans 3', 'Source Sans Pro', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
 }
 
 * {
@@ -23,12 +28,17 @@ html {
 }
 
 body {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
   background: var(--amd-dark);
   color: #f0f0f5;
   min-height: 100vh;
   overflow-x: hidden;
   line-height: 1.6;
+}
+
+/* Headings use Roboto Condensed */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
 }
 
 /* Animated gradient background */

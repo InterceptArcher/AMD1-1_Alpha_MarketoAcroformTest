@@ -696,12 +696,12 @@ class PDFService:
             background: rgba(0, 200, 170, 0.1);
             border-left: 4px solid var(--amd-cyan);
             border-radius: 0 10px 10px 0;
-            padding: 22px 26px;
-            margin-bottom: 28px;
+            padding: 18px 22px;
+            margin-bottom: 24px;
             font-style: italic;
             color: var(--amd-text-secondary);
-            max-height: 150px;
-            overflow: hidden;
+            font-size: 10.5pt;
+            line-height: 1.5;
             word-wrap: break-word;
         }
 
@@ -915,56 +915,56 @@ class PDFService:
         .why-amd-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin: 30px 0;
+            gap: 15px;
+            margin: 20px 0;
         }
 
         .why-amd-card {
             background: var(--amd-card);
             border: 1px solid var(--amd-border);
-            border-radius: 12px;
-            padding: 24px;
+            border-radius: 10px;
+            padding: 18px;
         }
 
         .why-amd-card h4 {
             color: var(--amd-cyan);
-            font-size: 11pt;
+            font-size: 10pt;
             font-weight: 700;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
         .why-amd-card p {
-            font-size: 10pt;
+            font-size: 9pt;
             color: var(--amd-text-secondary);
-            line-height: 1.5;
+            line-height: 1.4;
             margin: 0;
         }
 
         .cta-section-large {
             background: linear-gradient(135deg, rgba(0, 200, 170, 0.15) 0%, rgba(0, 100, 200, 0.10) 100%);
             border: 2px solid rgba(0, 200, 170, 0.4);
-            border-radius: 20px;
-            padding: 50px 60px;
+            border-radius: 16px;
+            padding: 30px 40px;
             text-align: center;
-            margin-top: 40px;
+            margin-top: 25px;
             page-break-inside: avoid;
         }
 
         .cta-section-large .cta-title {
-            font-size: 26pt;
+            font-size: 22pt;
             font-weight: 800;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             color: #ffffff;
         }
 
         .cta-section-large .cta-personalized {
-            font-size: 13pt;
-            max-width: 600px;
-            margin: 0 auto 36px;
+            font-size: 11pt;
+            max-width: 550px;
+            margin: 0 auto 24px;
             color: var(--amd-text-secondary);
-            line-height: 1.7;
+            line-height: 1.6;
         }
 
         .cta-button-large {
@@ -1170,12 +1170,30 @@ class PDFService:
 
         <p>$path_to_leadership</p>
 
-        <div class="info-box" style="margin-top: 35px;">
+        <div class="info-box" style="margin-top: 30px;">
             <div class="info-box-header">
                 <div class="info-box-icon">⚙</div>
                 <div class="info-box-title">Overcoming Barriers</div>
             </div>
-            <p style="margin: 0;">As AI technology matures, some early challenges are being solved. But significant barriers remain: legacy infrastructure, skill gaps, and data security concerns. The organizations that address these proactively are the ones that reach Leadership status.</p>
+            <p style="margin: 0 0 20px 0;">As AI technology matures, some early challenges are being solved. But significant barriers remain that organizations must address to reach Leadership status:</p>
+
+            <div class="barriers-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                <div class="barrier-item" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 18px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 24pt; font-weight: 800; color: var(--amd-cyan); margin-bottom: 8px;">67%</div>
+                    <div style="font-size: 10pt; font-weight: 600; color: #fff; margin-bottom: 6px;">Legacy Infrastructure</div>
+                    <div style="font-size: 9pt; color: var(--amd-text-secondary); line-height: 1.4;">cite outdated systems as the top barrier to AI adoption and digital transformation</div>
+                </div>
+                <div class="barrier-item" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 18px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 24pt; font-weight: 800; color: var(--amd-cyan); margin-bottom: 8px;">54%</div>
+                    <div style="font-size: 10pt; font-weight: 600; color: #fff; margin-bottom: 6px;">Skill Gaps</div>
+                    <div style="font-size: 9pt; color: var(--amd-text-secondary); line-height: 1.4;">report difficulty finding talent with AI/ML expertise to drive modernization initiatives</div>
+                </div>
+                <div class="barrier-item" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 18px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 24pt; font-weight: 800; color: var(--amd-cyan); margin-bottom: 8px;">48%</div>
+                    <div style="font-size: 10pt; font-weight: 600; color: #fff; margin-bottom: 6px;">Data Security</div>
+                    <div style="font-size: 9pt; color: var(--amd-text-secondary); line-height: 1.4;">express concerns about data privacy and compliance when implementing AI solutions</div>
+                </div>
+            </div>
         </div>
     </div>
 
