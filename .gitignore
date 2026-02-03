@@ -1,1 +1,38 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Environment variables
 .env
+.env*.local
+
+# Testing
+playwright-report/
+test-results/
+
+# Deployment
+.vercel
+
+# Logs and misc
+install.log
+*.log
+.DS_Store
+*.swp
+
+# IDE
+.claude/
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Supabase
+supabase/.temp/

@@ -1,19 +1,26 @@
 {
-  "project_name": "" ,
-  "owner": "" ,
-  "stack_type": "",
+  "project_name": "amd1-1_alpha",
+  "owner": "InterceptArcher",
+  "stack_type": "personalization_pipeline",
   "frontend": {
-    "provider": "",
-    "framework": "",
-    "language": ""
+    "provider": "vercel",
+    "framework": "next.js",
+    "language": "typescript"
   },
+
   "backend": {
-    "provider": "",
-    "language": "",
-    "framework": ""
+    "provider": "railway",
+    "language": "python",
+    "framework": "fastapi"
   },
+
   "database": {
-    "provider": "",
-    "type": ""
+    "provider": "supabase",
+    "type": "postgresql"
+  },
+  "deployment": {
+    "frontend": "vercel",
+    "backend": "railway",
+    "database": "supabase"
   }
 }

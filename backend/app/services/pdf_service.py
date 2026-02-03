@@ -1,0 +1,1934 @@
+"""
+PDF Service: Generates personalized ebook PDFs.
+Uses HTML templates with personalization slots.
+Stores PDFs in Supabase Storage, returns signed URLs.
+"""
+
+import logging
+import io
+import hashlib
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional
+from string import Template
+
+from app.config import settings
+from app.services.ebook_content import (
+    EBOOK_SECTIONS,
+    CASE_STUDIES,
+    get_case_study_for_industry,
+    get_buying_stage_context,
+    get_persona_context
+)
+
+logger = logging.getLogger(__name__)
+
+# PDF Configuration
+PDF_EXPIRY_HOURS = 24 * 7  # 7 days
+
+# Character limits for PDF text boxes (increased for better content)
+MAX_HOOK_LENGTH = 500
+MAX_CASE_STUDY_FRAMING_LENGTH = 400
+MAX_CTA_LENGTH = 350
+
+
+def truncate_text(text: str, max_length: int) -> str:
+    """
+    Truncate text to max_length characters, ending at a sentence boundary.
+    Ensures text doesn't overflow PDF text boxes while maintaining readability.
+    """
+    if not text or len(text) <= max_length:
+        return text or ""
+
+    # Try to find a sentence boundary (., !, ?) within the limit
+    truncated = text[:max_length]
+
+    # Look for last sentence ending
+    last_period = truncated.rfind('.')
+    last_exclaim = truncated.rfind('!')
+    last_question = truncated.rfind('?')
+
+    # Find the latest sentence boundary
+    last_sentence_end = max(last_period, last_exclaim, last_question)
+
+    # If we found a sentence boundary reasonably close to the limit (within 30%), use it
+    if last_sentence_end > max_length * 0.7:
+        return text[:last_sentence_end + 1].strip()
+
+    # Otherwise, truncate at word boundary without adding "..."
+    # Find last space and end there
+    last_space = truncated.rfind(' ')
+    if last_space > max_length * 0.7:
+        return text[:last_space].strip()
+
+    # Last resort: just truncate
+    return truncated.strip()
+
+
+class PDFService:
+    """
+    Generates personalized PDF ebooks.
+    - Uses HTML templates with personalization
+    - Stores in Supabase Storage
+    - Returns signed URLs for download
+    """
+
+    def __init__(self, supabase_client=None):
+        """
+        Initialize PDF service.
+
+        Args:
+            supabase_client: Optional Supabase client for storage
+        """
+        self.supabase = supabase_client
+        self.storage_bucket = "personalized-pdfs"
+        logger.info("PDF service initialized")
+
+    async def generate_pdf(
+        self,
+        job_id: int,
+        profile: Dict[str, Any],
+        intro_hook: str,
+        cta: str
+    ) -> Dict[str, Any]:
+        """
+        Generate personalized PDF for a job.
+
+        Args:
+            job_id: Job ID for tracking
+            profile: Normalized profile data
+            intro_hook: Personalized intro hook
+            cta: Personalized CTA
+
+        Returns:
+            Dict with pdf_url, storage_path, file_size
+        """
+        try:
+            # Generate HTML content
+            html_content = self._render_template(profile, intro_hook, cta)
+
+            # Convert to PDF
+            pdf_bytes = await self._html_to_pdf(html_content)
+
+            if not pdf_bytes:
+                raise ValueError("PDF generation returned empty content")
+
+            # Generate unique filename
+            email = profile.get("email", "unknown")
+            filename = self._generate_filename(email, job_id)
+
+            # Store in Supabase Storage (if available)
+            if self.supabase:
+                storage_path, pdf_url = await self._store_pdf(
+                    pdf_bytes, filename
+                )
+            else:
+                # Return base64 for testing
+                import base64
+                storage_path = f"local/{filename}"
+                pdf_url = f"data:application/pdf;base64,{base64.b64encode(pdf_bytes).decode()}"
+
+            result = {
+                "pdf_url": pdf_url,
+                "storage_path": storage_path,
+                "file_size_bytes": len(pdf_bytes),
+                "generated_at": datetime.utcnow().isoformat(),
+                "expires_at": (datetime.utcnow() + timedelta(hours=PDF_EXPIRY_HOURS)).isoformat()
+            }
+
+            logger.info(f"Generated PDF for job {job_id}: {len(pdf_bytes)} bytes")
+            return result
+
+        except Exception as e:
+            logger.error(f"PDF generation failed for job {job_id}: {e}")
+            raise
+
+    async def generate_amd_ebook(
+        self,
+        job_id: int,
+        profile: Dict[str, Any],
+        personalization: Dict[str, Any],
+        user_context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate personalized AMD ebook with 3 personalization points.
+
+        Args:
+            job_id: Job ID for tracking
+            profile: Normalized profile data
+            personalization: Dict with personalized_hook, case_study_framing, personalized_cta
+            user_context: User-provided context (goal, persona, industry)
+
+        Returns:
+            Dict with pdf_url, storage_path, file_size
+        """
+        try:
+            user_context = user_context or {}
+
+            # Get the appropriate case study based on industry
+            industry = user_context.get("industry_input") or profile.get("industry", "technology")
+            case_study = get_case_study_for_industry(industry)
+
+            # Generate HTML content with AMD ebook template
+            html_content = self._render_amd_ebook_template(
+                profile=profile,
+                personalized_hook=personalization.get("personalized_hook", ""),
+                case_study=case_study,
+                case_study_framing=personalization.get("case_study_framing", ""),
+                personalized_cta=personalization.get("personalized_cta", ""),
+                user_context=user_context
+            )
+
+            # Convert to PDF
+            pdf_bytes = await self._html_to_pdf(html_content)
+
+            if not pdf_bytes:
+                raise ValueError("PDF generation returned empty content")
+
+            # Generate unique filename
+            email = profile.get("email", "unknown")
+            filename = self._generate_filename(email, job_id)
+
+            # Store in Supabase Storage (if available)
+            if self.supabase:
+                storage_path, pdf_url = await self._store_pdf(pdf_bytes, filename)
+            else:
+                import base64
+                storage_path = f"local/{filename}"
+                pdf_url = f"data:application/pdf;base64,{base64.b64encode(pdf_bytes).decode()}"
+
+            result = {
+                "pdf_url": pdf_url,
+                "storage_path": storage_path,
+                "file_size_bytes": len(pdf_bytes),
+                "generated_at": datetime.utcnow().isoformat(),
+                "expires_at": (datetime.utcnow() + timedelta(hours=PDF_EXPIRY_HOURS)).isoformat(),
+                "case_study_used": case_study["title"]
+            }
+
+            logger.info(f"Generated AMD ebook for job {job_id}: {len(pdf_bytes)} bytes, case study: {case_study['title']}")
+            return result
+
+        except Exception as e:
+            logger.error(f"AMD ebook generation failed for job {job_id}: {e}")
+            raise
+
+    def _render_amd_ebook_template(
+        self,
+        profile: Dict[str, Any],
+        personalized_hook: str,
+        case_study: Dict[str, Any],
+        case_study_framing: str,
+        personalized_cta: str,
+        user_context: Dict[str, Any]
+    ) -> str:
+        """Render AMD ebook HTML template with personalization."""
+        template = Template(self._get_amd_ebook_template())
+
+        # Truncate personalized content to fit PDF text boxes
+        hook_truncated = truncate_text(personalized_hook, MAX_HOOK_LENGTH)
+        framing_truncated = truncate_text(case_study_framing, MAX_CASE_STUDY_FRAMING_LENGTH)
+        cta_truncated = truncate_text(personalized_cta, MAX_CTA_LENGTH)
+
+        variables = {
+            "first_name": profile.get("first_name", "Reader"),
+            "last_name": profile.get("last_name", ""),
+            "company_name": profile.get("company_name") or profile.get("company", "your company"),
+            "title": profile.get("title", "Professional"),
+            "industry": user_context.get("industry_input") or profile.get("industry", "your industry"),
+            "generated_date": datetime.utcnow().strftime("%B %d, %Y"),
+            # Personalized sections (truncated to fit PDF boxes)
+            "personalized_hook": hook_truncated,
+            "case_study_framing": framing_truncated,
+            "personalized_cta": cta_truncated,
+            # Case study content
+            "case_study_title": case_study["title"],
+            "case_study_company": case_study["company"],
+            "case_study_industry": case_study["industry"],
+            "case_study_challenge": case_study["challenge"],
+            "case_study_solution": case_study["solution"],
+            "case_study_quote": case_study["quote"],
+            "case_study_quote_author": case_study["quote_author"],
+            "case_study_result": case_study["result"],
+            # Static content
+            "intro_section": EBOOK_SECTIONS["intro_section"],
+            "three_stages_intro": EBOOK_SECTIONS["three_stages_intro"],
+            "leaders_section": EBOOK_SECTIONS["leaders_section"],
+            "challengers_section": EBOOK_SECTIONS["challengers_section"],
+            "observers_section": EBOOK_SECTIONS["observers_section"],
+            "path_to_leadership": EBOOK_SECTIONS["path_to_leadership"],
+            "modernization_models": EBOOK_SECTIONS["modernization_models"],
+            "why_amd": EBOOK_SECTIONS["why_amd"],
+            "assessment_questions": EBOOK_SECTIONS["assessment_questions"],
+        }
+
+        return template.safe_substitute(variables)
+
+    def _get_amd_ebook_template(self) -> str:
+        """Get the AMD ebook HTML template - matching official AMD design."""
+        return '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>An Enterprise AI Readiness Framework</title>
+    <!-- AMD Brand Fonts: Roboto Condensed (headings), Source Sans 3 (body - Syke alternative) -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: letter;
+            margin: 0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Font definitions */
+        :root {
+            /* AMD Logo: Gill Sans with fallbacks for Linux servers */
+            --font-amd-logo: 'Gill Sans', 'Gill Sans MT', 'Avenir', 'Helvetica Neue', Arial, sans-serif;
+            /* Headings: Roboto Condensed */
+            --font-heading: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+            /* Body: Source Sans 3 (similar to Syke - clean geometric sans-serif) */
+            --font-body: 'Source Sans 3', 'Source Sans Pro', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-body);
+            line-height: 1.6;
+            color: #f0f0f5;
+            background: #0a0a12;
+            font-size: 11pt;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Headings use Roboto Condensed */
+        h1, h2, h3, h4, h5, h6,
+        .cover-title, .section-title, .chapter-title {
+            font-family: var(--font-heading);
+        }
+
+        /* AMD Logo uses Gill Sans */
+        .amd-logo {
+            font-family: var(--font-amd-logo);
+        }
+
+        /* AMD Brand Colors */
+        :root {
+            --amd-cyan: #00c8aa;
+            --amd-cyan-bright: #00e0be;
+            --amd-dark: #0a0a12;
+            --amd-darker: #050508;
+            --amd-card: rgba(255, 255, 255, 0.04);
+            --amd-border: rgba(255, 255, 255, 0.12);
+            --amd-text: #f0f0f5;
+            --amd-text-secondary: #b0b0bc;
+            --amd-text-muted: #8a8a9a;
+        }
+
+        /* ==================== COVER PAGE ==================== */
+        .cover-page {
+            min-height: 100vh;
+            background:
+                radial-gradient(ellipse 80% 50% at 20% 40%, rgba(0, 200, 170, 0.12) 0%, transparent 50%),
+                radial-gradient(ellipse 60% 40% at 80% 60%, rgba(0, 100, 200, 0.08) 0%, transparent 50%),
+                linear-gradient(180deg, #0a0a12 0%, #0d1420 50%, #0a0a12 100%);
+            padding: 60px 60px;
+            position: relative;
+            page-break-after: always;
+        }
+
+        .cover-page::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(0, 200, 170, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            transform: translate(30%, -30%);
+        }
+
+        .amd-logo {
+            font-size: 28pt;
+            font-weight: 800;
+            letter-spacing: 4px;
+            margin-bottom: 180px;
+            color: #ffffff;
+        }
+
+        .cover-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(0, 200, 170, 0.15);
+            border: 1px solid rgba(0, 200, 170, 0.4);
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+
+        .cover-badge-text {
+            font-size: 10pt;
+            color: var(--amd-cyan);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .cover-subtitle {
+            color: var(--amd-cyan);
+            font-size: 14pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+        }
+
+        .cover-title {
+            font-size: 48pt;
+            font-weight: 800;
+            line-height: 1.05;
+            margin-bottom: 40px;
+            color: #ffffff;
+        }
+
+        .cover-title-gradient {
+            background: linear-gradient(135deg, var(--amd-cyan) 0%, #00e0be 50%, #40f0d0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .cover-personalized {
+            margin-top: 60px;
+            padding: 28px 32px;
+            background: rgba(0, 200, 170, 0.08);
+            border: 1px solid rgba(0, 200, 170, 0.4);
+            border-radius: 12px;
+            max-width: 420px;
+            position: relative;
+            overflow: hidden;
+            word-wrap: break-word;
+        }
+
+        .cover-personalized::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--amd-cyan);
+            border-radius: 12px 0 0 12px;
+        }
+
+        .cover-personalized-label {
+            font-size: 9pt;
+            color: var(--amd-cyan);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .cover-personalized-name {
+            font-size: 20pt;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #ffffff;
+        }
+
+        .cover-personalized-role {
+            font-size: 12pt;
+            color: var(--amd-text-secondary);
+        }
+
+        /* ==================== CONTENT PAGES ==================== */
+        .content-page {
+            background: var(--amd-dark);
+            padding: 55px 60px;
+            min-height: 100vh;
+            page-break-after: always;
+        }
+
+        .content-page:last-child {
+            page-break-after: auto;
+        }
+
+        /* ==================== SECTION HEADERS ==================== */
+        .section-header {
+            margin-bottom: 35px;
+        }
+
+        .section-header h2 {
+            font-size: 28pt;
+            font-weight: 800;
+            line-height: 1.15;
+            margin-bottom: 0;
+            color: #ffffff;
+        }
+
+        .section-header::before {
+            content: '';
+            display: block;
+            width: 50px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--amd-cyan) 0%, var(--amd-cyan-bright) 100%);
+            margin-bottom: 28px;
+            border-radius: 2px;
+        }
+
+        /* ==================== PERSONALIZED HOOK ==================== */
+        .personalized-hook {
+            background: linear-gradient(135deg, rgba(0, 200, 170, 0.12) 0%, rgba(0, 200, 170, 0.04) 100%);
+            border: 1px solid rgba(0, 200, 170, 0.25);
+            border-left: 4px solid var(--amd-cyan);
+            border-radius: 0 12px 12px 0;
+            padding: 32px 36px;
+            margin: 35px 0;
+            font-size: 12pt;
+            line-height: 1.7;
+            max-height: 200px;
+            overflow: hidden;
+            word-wrap: break-word;
+            page-break-inside: avoid;
+        }
+
+        .personalized-hook-label {
+            color: var(--amd-cyan);
+            font-size: 10pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .personalized-hook-label::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--amd-cyan);
+            border-radius: 50%;
+        }
+
+        /* ==================== STATISTICS ==================== */
+        .stats-grid {
+            display: flex;
+            justify-content: space-between;
+            gap: 35px;
+            margin: 45px 0;
+            page-break-inside: avoid;
+        }
+
+        .stat-item {
+            text-align: center;
+            flex: 1;
+            padding: 25px;
+            background: var(--amd-card);
+            border: 1px solid var(--amd-border);
+            border-radius: 12px;
+        }
+
+        .stat-number {
+            font-size: 52pt;
+            font-weight: 300;
+            color: var(--amd-cyan);
+            line-height: 1;
+            letter-spacing: -2px;
+        }
+
+        .stat-suffix {
+            font-size: 26pt;
+            color: var(--amd-cyan);
+        }
+
+        .stat-label {
+            font-size: 10pt;
+            color: var(--amd-text-secondary);
+            margin-top: 14px;
+            line-height: 1.5;
+        }
+
+        .stat-label strong {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        /* ==================== INFO BOXES ==================== */
+        .info-box {
+            background: var(--amd-card);
+            border: 1px solid var(--amd-border);
+            border-radius: 12px;
+            padding: 28px 32px;
+            margin: 30px 0;
+            page-break-inside: avoid;
+            overflow: hidden;
+        }
+
+        .info-box-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .info-box-icon {
+            width: 44px;
+            height: 44px;
+            background: rgba(0, 200, 170, 0.15);
+            border: 2px solid var(--amd-cyan);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+            font-size: 18pt;
+            color: var(--amd-cyan);
+        }
+
+        .info-box-title {
+            font-size: 13pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ffffff;
+        }
+
+        /* ==================== TWO COLUMN LAYOUT ==================== */
+        .two-column {
+            display: flex;
+            gap: 30px;
+        }
+
+        .column {
+            flex: 1;
+        }
+
+        .column-box {
+            background: var(--amd-card);
+            border: 1px solid var(--amd-border);
+            border-radius: 12px;
+            padding: 28px;
+            height: 100%;
+        }
+
+        .column-box h4 {
+            color: var(--amd-cyan);
+            font-size: 11pt;
+            font-weight: 700;
+            margin-bottom: 24px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--amd-border);
+        }
+
+        .column-item {
+            margin-bottom: 22px;
+        }
+
+        .column-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .column-item-number {
+            color: var(--amd-cyan);
+            font-size: 16pt;
+            font-weight: 300;
+            margin-bottom: 6px;
+            opacity: 0.8;
+        }
+
+        .column-item-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #ffffff;
+            font-size: 11pt;
+        }
+
+        .column-item-text {
+            font-size: 10pt;
+            color: var(--amd-text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ==================== CASE STUDY ==================== */
+        .case-study {
+            background: linear-gradient(180deg, rgba(13, 26, 45, 0.8) 0%, var(--amd-dark) 100%);
+            border: 1px solid var(--amd-border);
+            border-radius: 16px;
+            padding: 45px;
+            margin: 35px 0;
+            page-break-inside: avoid;
+        }
+
+        .case-study-label {
+            color: var(--amd-cyan);
+            font-size: 10pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .case-study-label::before {
+            content: '';
+            width: 24px;
+            height: 2px;
+            background: var(--amd-cyan);
+        }
+
+        .case-study-title {
+            font-size: 24pt;
+            font-weight: 800;
+            margin-bottom: 28px;
+            color: #ffffff;
+        }
+
+        .case-study-framing {
+            background: rgba(0, 200, 170, 0.1);
+            border-left: 4px solid var(--amd-cyan);
+            border-radius: 0 10px 10px 0;
+            padding: 18px 22px;
+            margin-bottom: 24px;
+            font-style: italic;
+            color: var(--amd-text-secondary);
+            font-size: 10.5pt;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .case-study-framing strong {
+            color: var(--amd-cyan);
+            font-style: normal;
+            font-weight: 600;
+        }
+
+        /* ==================== QUOTE BLOCK ==================== */
+        .quote-block {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            padding: 35px 40px;
+            margin: 32px 0;
+            position: relative;
+            border: 1px solid rgba(0, 200, 170, 0.2);
+        }
+
+        .quote-mark {
+            font-size: 80pt;
+            color: var(--amd-cyan);
+            opacity: 0.2;
+            position: absolute;
+            top: -20px;
+            left: 25px;
+            font-family: Georgia, serif;
+            line-height: 1;
+        }
+
+        .quote-text {
+            font-size: 14pt;
+            line-height: 1.7;
+            font-style: italic;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+            color: var(--amd-text);
+        }
+
+        .quote-author {
+            color: var(--amd-cyan);
+            font-weight: 700;
+            font-style: normal;
+            font-size: 11pt;
+        }
+
+        /* ==================== CTA SECTION ==================== */
+        .cta-section {
+            background: linear-gradient(135deg, rgba(0, 200, 170, 0.12) 0%, rgba(0, 100, 200, 0.08) 100%);
+            border: 1px solid rgba(0, 200, 170, 0.3);
+            border-radius: 16px;
+            padding: 40px 50px;
+            text-align: center;
+            margin-top: 35px;
+            page-break-inside: avoid;
+        }
+
+        .cta-title {
+            font-size: 22pt;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #ffffff;
+        }
+
+        .cta-personalized {
+            font-size: 12pt;
+            max-width: 550px;
+            margin: 0 auto 32px;
+            color: var(--amd-text-secondary);
+            line-height: 1.6;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--amd-cyan) 0%, var(--amd-cyan-bright) 100%);
+            color: var(--amd-dark);
+            padding: 16px 45px;
+            font-weight: 700;
+            text-transform: uppercase;
+            text-decoration: none;
+            letter-spacing: 1.5px;
+            border-radius: 8px;
+            font-size: 11pt;
+        }
+
+        /* ==================== PAGE FOOTER ==================== */
+        .page-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 35px;
+            margin-top: 45px;
+            border-top: 1px solid var(--amd-border);
+            font-size: 9pt;
+            color: var(--amd-text-muted);
+        }
+
+        .page-footer strong {
+            color: var(--amd-text);
+        }
+
+        /* ==================== TYPOGRAPHY ==================== */
+        p {
+            margin-bottom: 16px;
+            color: var(--amd-text-secondary);
+            font-size: 11pt;
+            line-height: 1.7;
+        }
+
+        strong {
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        /* ==================== LISTS ==================== */
+        ul {
+            margin: 18px 0;
+            padding-left: 0;
+            list-style: none;
+        }
+
+        li {
+            margin-bottom: 12px;
+            color: var(--amd-text-secondary);
+            padding-left: 24px;
+            position: relative;
+            font-size: 10pt;
+            line-height: 1.5;
+        }
+
+        li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 8px;
+            width: 8px;
+            height: 8px;
+            background: var(--amd-cyan);
+            border-radius: 50%;
+            opacity: 0.7;
+        }
+
+        /* ==================== TOC STYLING ==================== */
+        .toc-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 20px;
+            background: var(--amd-card);
+            border: 1px solid var(--amd-border);
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .toc-number {
+            font-size: 32pt;
+            font-weight: 300;
+            color: var(--amd-cyan);
+            line-height: 1;
+            min-width: 50px;
+        }
+
+        .toc-content {
+            flex: 1;
+        }
+
+        .toc-title {
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 4px;
+            font-size: 11pt;
+        }
+
+        .toc-subtitle {
+            font-size: 10pt;
+            color: var(--amd-text-muted);
+        }
+
+        /* ==================== ASSESSMENT QUESTIONS GRID ==================== */
+        .assessment-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px 35px;
+            margin-top: 30px;
+        }
+
+        .assessment-item {
+            background: var(--amd-card);
+            border: 1px solid var(--amd-border);
+            border-radius: 12px;
+            padding: 20px 24px;
+        }
+
+        .assessment-number {
+            font-size: 36pt;
+            font-weight: 300;
+            color: var(--amd-cyan);
+            line-height: 1;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+        }
+
+        .assessment-question {
+            font-size: 10pt;
+            color: var(--amd-text-secondary);
+            line-height: 1.5;
+        }
+
+        /* ==================== WHY AMD CTA SECTION ==================== */
+        .why-amd-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .why-amd-card {
+            background: var(--amd-card);
+            border: 1px solid var(--amd-border);
+            border-radius: 10px;
+            padding: 18px;
+        }
+
+        .why-amd-card h4 {
+            color: var(--amd-cyan);
+            font-size: 10pt;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .why-amd-card p {
+            font-size: 9pt;
+            color: var(--amd-text-secondary);
+            line-height: 1.4;
+            margin: 0;
+        }
+
+        .cta-section-large {
+            background: linear-gradient(135deg, rgba(0, 200, 170, 0.15) 0%, rgba(0, 100, 200, 0.10) 100%);
+            border: 2px solid rgba(0, 200, 170, 0.4);
+            border-radius: 16px;
+            padding: 30px 40px;
+            text-align: center;
+            margin-top: 25px;
+            page-break-inside: avoid;
+        }
+
+        .cta-section-large .cta-title {
+            font-size: 22pt;
+            font-weight: 800;
+            margin-bottom: 16px;
+            color: #ffffff;
+        }
+
+        .cta-section-large .cta-personalized {
+            font-size: 11pt;
+            max-width: 550px;
+            margin: 0 auto 24px;
+            color: var(--amd-text-secondary);
+            line-height: 1.6;
+        }
+
+        .cta-button-large {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--amd-cyan) 0%, var(--amd-cyan-bright) 100%);
+            color: var(--amd-dark);
+            padding: 18px 50px;
+            font-weight: 700;
+            text-transform: uppercase;
+            text-decoration: none;
+            letter-spacing: 2px;
+            border-radius: 10px;
+            font-size: 12pt;
+        }
+    </style>
+</head>
+<body>
+    <!-- COVER PAGE -->
+    <div class="cover-page">
+        <div class="amd-logo">AMD</div>
+
+        <div class="cover-badge">
+            <span class="cover-badge-text">Enterprise Guide</span>
+        </div>
+
+        <div class="cover-subtitle">From Observers to Leaders</div>
+
+        <h1 class="cover-title">An Enterprise<br><span class="cover-title-gradient">AI Readiness</span><br>Framework</h1>
+
+        <div class="cover-personalized">
+            <div class="cover-personalized-label">Prepared Exclusively For</div>
+            <div class="cover-personalized-name">$first_name $last_name</div>
+            <div class="cover-personalized-role">$title at $company_name</div>
+        </div>
+    </div>
+
+    <!-- TABLE OF CONTENTS -->
+    <div class="content-page">
+        <div class="section-header">
+            <h2>Table of Contents</h2>
+        </div>
+
+        <div class="toc-item">
+            <div class="toc-number">01</div>
+            <div class="toc-content">
+                <div class="toc-title">Redefining the Data Center</div>
+                <div class="toc-subtitle">AI Readiness in the Age of Acceleration</div>
+            </div>
+        </div>
+
+        <div class="toc-item">
+            <div class="toc-number">02</div>
+            <div class="toc-content">
+                <div class="toc-title">Understanding the Three Stages</div>
+                <div class="toc-subtitle">Data Center Modernization Framework</div>
+            </div>
+        </div>
+
+        <div class="toc-item">
+            <div class="toc-number">03</div>
+            <div class="toc-content">
+                <div class="toc-title">The Path to Leadership</div>
+                <div class="toc-subtitle">Moving Through the Stages</div>
+            </div>
+        </div>
+
+        <div class="toc-item">
+            <div class="toc-number">04</div>
+            <div class="toc-content">
+                <div class="toc-title">Modernization in Action</div>
+                <div class="toc-subtitle">Customer Success: $case_study_company</div>
+            </div>
+        </div>
+
+        <div class="toc-item">
+            <div class="toc-number">05</div>
+            <div class="toc-content">
+                <div class="toc-title">Why AMD</div>
+                <div class="toc-subtitle">Your Strategic Partner for AI Modernization</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PERSONALIZED INTRO -->
+    <div class="content-page">
+        <div class="section-header">
+            <h2>Redefining the Data Center</h2>
+        </div>
+
+        <div class="personalized-hook">
+            <div class="personalized-hook-label">A Message for $first_name</div>
+            <p style="margin: 0; color: #ffffff;">$personalized_hook</p>
+        </div>
+
+        <p>$intro_section</p>
+
+        <div class="stats-grid" style="margin-top: 50px;">
+            <div class="stat-item">
+                <div class="stat-number">97<span class="stat-suffix">%</span></div>
+                <div class="stat-label">of data center capacity was occupied as of March 2023 in top North American markets</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">2.5<span class="stat-suffix">x</span></div>
+                <div class="stat-label">growth in AI workloads expected over the next 3 years</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- THREE STAGES -->
+    <div class="content-page">
+        <div class="section-header">
+            <h2>Understanding the Three Stages</h2>
+        </div>
+
+        <p>$three_stages_intro</p>
+
+        <div class="stats-grid" style="margin-top: 40px;">
+            <div class="stat-item">
+                <div class="stat-number">33<span class="stat-suffix">%</span></div>
+                <div class="stat-label"><strong>Leaders</strong><br>Fully modernized in the past two years</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">58<span class="stat-suffix">%</span></div>
+                <div class="stat-label"><strong>Challengers</strong><br>Currently undertaking modernization</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">9<span class="stat-suffix">%</span></div>
+                <div class="stat-label"><strong>Observers</strong><br>Planning to modernize within two years</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LEADERS SECTION -->
+    <div class="content-page">
+        <div class="section-header">
+            <h2>Data Center Leaders</h2>
+        </div>
+
+        <p>$leaders_section</p>
+
+        <div class="two-column" style="margin-top: 35px;">
+            <div class="column">
+                <div class="column-box">
+                    <h4>Advantages</h4>
+                    <div class="column-item">
+                        <div class="column-item-number">01</div>
+                        <div class="column-item-title">Operational Efficiencies</div>
+                        <div class="column-item-text">Reduce costs by allocating more budget to innovation rather than system maintenance.</div>
+                    </div>
+                    <div class="column-item">
+                        <div class="column-item-number">02</div>
+                        <div class="column-item-title">Competitive Advantage</div>
+                        <div class="column-item-text">AI widens the gap through enhanced decision-making and innovative products.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="column">
+                <div class="column-box">
+                    <h4>Risks to Manage</h4>
+                    <div class="column-item">
+                        <div class="column-item-number">01</div>
+                        <div class="column-item-title">Technical Debt</div>
+                        <div class="column-item-text">The top reason organizations overspend on digital infrastructure.</div>
+                    </div>
+                    <div class="column-item">
+                        <div class="column-item-number">02</div>
+                        <div class="column-item-title">Integration Complexity</div>
+                        <div class="column-item-text">The most significant technical challenge for AI adoption.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHALLENGERS & OBSERVERS -->
+    <div class="content-page">
+        <div class="section-header">
+            <h2>Challengers &amp; Observers</h2>
+        </div>
+
+        <div class="info-box">
+            <div class="info-box-header">
+                <div class="info-box-icon">⚡</div>
+                <div class="info-box-title">Challengers (58%)</div>
+            </div>
+            <p style="margin: 0;">$challengers_section</p>
+        </div>
+
+        <div class="info-box" style="margin-top: 25px;">
+            <div class="info-box-header">
+                <div class="info-box-icon">🔭</div>
+                <div class="info-box-title">Observers (9%)</div>
+            </div>
+            <p style="margin: 0;">$observers_section</p>
+        </div>
+    </div>
+
+    <!-- PATH TO LEADERSHIP -->
+    <div class="content-page">
+        <div class="section-header">
+            <h2>The Path to Leadership</h2>
+        </div>
+
+        <p>$path_to_leadership</p>
+
+        <div class="info-box" style="margin-top: 30px;">
+            <div class="info-box-header">
+                <div class="info-box-icon">⚙</div>
+                <div class="info-box-title">Overcoming Barriers</div>
+            </div>
+            <p style="margin: 0 0 20px 0;">As AI technology matures, some early challenges are being solved. But significant barriers remain that organizations must address to reach Leadership status:</p>
+
+            <div class="barriers-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                <div class="barrier-item" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 18px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 24pt; font-weight: 800; color: var(--amd-cyan); margin-bottom: 8px;">67%</div>
+                    <div style="font-size: 10pt; font-weight: 600; color: #fff; margin-bottom: 6px;">Legacy Infrastructure</div>
+                    <div style="font-size: 9pt; color: var(--amd-text-secondary); line-height: 1.4;">cite outdated systems as the top barrier to AI adoption and digital transformation</div>
+                </div>
+                <div class="barrier-item" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 18px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 24pt; font-weight: 800; color: var(--amd-cyan); margin-bottom: 8px;">54%</div>
+                    <div style="font-size: 10pt; font-weight: 600; color: #fff; margin-bottom: 6px;">Skill Gaps</div>
+                    <div style="font-size: 9pt; color: var(--amd-text-secondary); line-height: 1.4;">report difficulty finding talent with AI/ML expertise to drive modernization initiatives</div>
+                </div>
+                <div class="barrier-item" style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 18px; border: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 24pt; font-weight: 800; color: var(--amd-cyan); margin-bottom: 8px;">48%</div>
+                    <div style="font-size: 10pt; font-weight: 600; color: #fff; margin-bottom: 6px;">Data Security</div>
+                    <div style="font-size: 9pt; color: var(--amd-text-secondary); line-height: 1.4;">express concerns about data privacy and compliance when implementing AI solutions</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODERNIZATION MODELS -->
+    <div class="content-page">
+        <div class="section-header">
+            <h2>Modernization Models</h2>
+        </div>
+
+        <p>$modernization_models</p>
+
+        <div class="two-column" style="margin-top: 35px;">
+            <div class="column">
+                <div class="column-box">
+                    <h4>Modernize In-Place</h4>
+                    <ul>
+                        <li>Lower capital expenditures</li>
+                        <li>More predictable costs</li>
+                        <li>Better control over sensitive data</li>
+                        <li>Optimized existing investments</li>
+                        <li>Reduced operational risk</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="column">
+                <div class="column-box">
+                    <h4>Refactor &amp; Shift</h4>
+                    <ul>
+                        <li>Accelerated innovation</li>
+                        <li>Agile development cycles</li>
+                        <li>Faster AI tool integration</li>
+                        <li>More efficient scalability</li>
+                        <li>Modern developer experience</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CASE STUDY -->
+    <div class="content-page">
+        <div class="case-study">
+            <div class="case-study-label">Customer Success</div>
+            <h3 class="case-study-title">$case_study_title</h3>
+
+            <div class="case-study-framing">
+                <strong>Why this matters for $company_name:</strong><br>
+                $case_study_framing
+            </div>
+
+            <p><strong>The Challenge:</strong> $case_study_challenge</p>
+            <p><strong>The Solution:</strong> $case_study_solution</p>
+
+            <div class="quote-block">
+                <div class="quote-mark">"</div>
+                <div class="quote-text">$case_study_quote</div>
+                <div class="quote-author">— $case_study_quote_author</div>
+            </div>
+
+            <p><strong>The Result:</strong> $case_study_result</p>
+        </div>
+    </div>
+
+    <!-- ASSESSMENT -->
+    <div class="content-page">
+        <div class="section-header">
+            <h2>Where Do You Stand?</h2>
+        </div>
+
+        <p style="margin-bottom: 10px;">Use these questions to assess where your organization stands on the modernization curve:</p>
+
+        <div class="assessment-grid">
+            <div class="assessment-item">
+                <div class="assessment-number">01</div>
+                <div class="assessment-question">Do your long-term IT investments align with your enterprise AI strategy?</div>
+            </div>
+            <div class="assessment-item">
+                <div class="assessment-number">02</div>
+                <div class="assessment-question">When was the last time your core infrastructure was meaningfully modernized?</div>
+            </div>
+            <div class="assessment-item">
+                <div class="assessment-number">03</div>
+                <div class="assessment-question">Can your current IT environment support AI workloads without requiring major upgrades?</div>
+            </div>
+            <div class="assessment-item">
+                <div class="assessment-number">04</div>
+                <div class="assessment-question">Are you measuring the ROI of your modernization efforts?</div>
+            </div>
+            <div class="assessment-item">
+                <div class="assessment-number">05</div>
+                <div class="assessment-question">Do you have the skills to drive modernization and AI adoption at scale?</div>
+            </div>
+            <div class="assessment-item">
+                <div class="assessment-number">06</div>
+                <div class="assessment-question">Is your AI strategy supported by a dedicated or protected budget?</div>
+            </div>
+            <div class="assessment-item">
+                <div class="assessment-number">07</div>
+                <div class="assessment-question">What's your approach to application modernization?</div>
+            </div>
+            <div class="assessment-item">
+                <div class="assessment-number">08</div>
+                <div class="assessment-question">Is your infrastructure resilient enough to handle the dynamic scaling needs of AI workloads?</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WHY AMD -->
+    <div class="content-page">
+        <div class="section-header">
+            <h2>Why AMD</h2>
+        </div>
+
+        <p style="margin-bottom: 25px;">$why_amd</p>
+
+        <div class="why-amd-grid">
+            <div class="why-amd-card">
+                <h4>Open Ecosystem</h4>
+                <p>Build workload-optimized architectures without vendor lock-in using AMD's comprehensive portfolio of CPUs, GPUs, and adaptive computing solutions.</p>
+            </div>
+            <div class="why-amd-card">
+                <h4>Right-Sized Solutions</h4>
+                <p>Choose solutions that optimize cost efficiency—whether cloud-based, on-prem, or hybrid—without over-provisioning resources.</p>
+            </div>
+            <div class="why-amd-card">
+                <h4>AMD EPYC™ Processors</h4>
+                <p>Industry-leading performance for enterprise data center workloads with exceptional efficiency and security features.</p>
+            </div>
+            <div class="why-amd-card">
+                <h4>AMD Instinct™ Accelerators</h4>
+                <p>Purpose-built for AI and HPC workloads, delivering breakthrough performance for training and inference.</p>
+            </div>
+        </div>
+
+        <div class="cta-section-large">
+            <div class="cta-title">Ready to Accelerate Your AI Journey?</div>
+            <div class="cta-personalized">$personalized_cta</div>
+            <a href="https://www.amd.com/en/solutions/data-center.html" class="cta-button-large">Explore AMD Solutions →</a>
+        </div>
+
+        <div class="page-footer">
+            <div>
+                <p style="margin: 0; font-size: 10pt;">Personalized for <strong>$first_name</strong> at <strong>$company_name</strong></p>
+                <p style="margin: 5px 0 0 0;">Generated on $generated_date</p>
+            </div>
+            <div>
+                © 2026 Advanced Micro Devices, Inc.
+            </div>
+        </div>
+    </div>
+</body>
+</html>'''
+
+    def _get_case_study_for_profile(
+        self,
+        profile: Dict[str, Any],
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Get appropriate case study based on profile industry."""
+        industry = user_context.get("industry_input") or profile.get("industry", "technology")
+        return get_case_study_for_industry(industry)
+
+    def _render_template(
+        self,
+        profile: Dict[str, Any],
+        intro_hook: str,
+        cta: str
+    ) -> str:
+        """
+        Render HTML template with personalization.
+
+        Args:
+            profile: Profile data
+            intro_hook: Personalized intro
+            cta: Personalized CTA
+
+        Returns:
+            Rendered HTML string
+        """
+        template = Template(self._get_ebook_template())
+
+        # Prepare template variables
+        variables = {
+            "first_name": profile.get("first_name", "Reader"),
+            "company_name": profile.get("company_name", "your company"),
+            "title": profile.get("title", "Professional"),
+            "industry": profile.get("industry", "your industry"),
+            "intro_hook": intro_hook,
+            "cta": cta,
+            "generated_date": datetime.utcnow().strftime("%B %d, %Y"),
+        }
+
+        return template.safe_substitute(variables)
+
+    def _get_ebook_template(self) -> str:
+        """Get the HTML ebook template."""
+        return """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Personalized Guide</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: 'Source Sans 3', 'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        .cover {
+            text-align: center;
+            padding: 100px 0;
+            page-break-after: always;
+        }
+
+        .cover h1 {
+            font-size: 36px;
+            color: #1a365d;
+            margin-bottom: 20px;
+        }
+
+        .cover .subtitle {
+            font-size: 18px;
+            color: #4a5568;
+            margin-bottom: 40px;
+        }
+
+        .personalized-intro {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 40px 0;
+        }
+
+        .personalized-intro h2 {
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        .personalized-intro p {
+            font-size: 18px;
+            margin-bottom: 0;
+        }
+
+        .chapter {
+            page-break-before: always;
+            padding-top: 40px;
+        }
+
+        .chapter h2 {
+            color: #1a365d;
+            font-size: 28px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .chapter p {
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .callout {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .cta-section {
+            background: #1a365d;
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 60px;
+        }
+
+        .cta-section h2 {
+            color: white;
+            margin-top: 0;
+        }
+
+        .cta-section p {
+            font-size: 18px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 15px 40px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 12px;
+            color: #718096;
+        }
+    </style>
+</head>
+<body>
+    <div class="cover">
+        <h1>Strategic Growth Guide</h1>
+        <p class="subtitle">Personalized insights for $company_name</p>
+        <p>Prepared for: $first_name</p>
+        <p>$generated_date</p>
+    </div>
+
+    <div class="personalized-intro">
+        <h2>A Message For You</h2>
+        <p>$intro_hook</p>
+    </div>
+
+    <div class="chapter">
+        <h2>Chapter 1: Understanding the Landscape</h2>
+        <p>The $industry sector is evolving rapidly. Companies like $company_name are at the forefront of this transformation, and leaders in your position as $title play a crucial role in driving success.</p>
+
+        <div class="callout">
+            <strong>Key Insight:</strong> Organizations that adapt their strategies early see 40% better outcomes in competitive markets.
+        </div>
+
+        <p>In this guide, we'll explore actionable strategies tailored to your role and industry. Each section builds on proven methodologies that have helped similar organizations achieve their goals.</p>
+    </div>
+
+    <div class="chapter">
+        <h2>Chapter 2: Strategic Frameworks</h2>
+        <p>Effective strategy requires a structured approach. For $title roles in $industry, we recommend focusing on three key areas:</p>
+
+        <p><strong>1. Alignment</strong> - Ensure your team's efforts connect directly to organizational objectives.</p>
+        <p><strong>2. Measurement</strong> - Establish clear metrics that reflect true progress.</p>
+        <p><strong>3. Iteration</strong> - Build feedback loops that enable continuous improvement.</p>
+
+        <div class="callout">
+            <strong>Pro Tip:</strong> Start with one area and expand. Trying to transform everything at once often leads to none succeeding.
+        </div>
+    </div>
+
+    <div class="chapter">
+        <h2>Chapter 3: Implementation Roadmap</h2>
+        <p>Turning strategy into action requires careful planning. Here's a practical 90-day roadmap:</p>
+
+        <p><strong>Days 1-30:</strong> Assessment and alignment. Understand current state and stakeholder needs.</p>
+        <p><strong>Days 31-60:</strong> Pilot and learn. Test approaches with a controlled group.</p>
+        <p><strong>Days 61-90:</strong> Scale and optimize. Expand what works, adjust what doesn't.</p>
+
+        <p>Remember, $first_name, the goal isn't perfection—it's progress. Each step forward builds momentum for the next.</p>
+    </div>
+
+    <div class="cta-section">
+        <h2>Ready to Take the Next Step?</h2>
+        <p>$cta</p>
+        <a href="#" class="cta-button">Schedule a Conversation</a>
+    </div>
+
+    <div class="footer">
+        <p>This guide was personalized for $first_name at $company_name</p>
+        <p>Generated on $generated_date</p>
+    </div>
+</body>
+</html>
+"""
+
+    async def _html_to_pdf(self, html_content: str) -> bytes:
+        """
+        Convert HTML to PDF.
+
+        Uses weasyprint if available, otherwise uses reportlab with extracted content.
+
+        Args:
+            html_content: HTML string to convert
+
+        Returns:
+            PDF bytes
+        """
+        try:
+            # Try weasyprint first (preferred for production)
+            from weasyprint import HTML
+            pdf_bytes = HTML(string=html_content).write_pdf()
+            logger.info("Generated PDF using weasyprint")
+            return pdf_bytes
+        except ImportError:
+            logger.warning("weasyprint not available, using reportlab fallback")
+        except Exception as e:
+            logger.warning(f"weasyprint failed: {e}, using reportlab fallback")
+
+        # Fallback: Generate PDF using reportlab with actual content
+        try:
+            return self._generate_reportlab_pdf(html_content)
+        except Exception as e:
+            logger.error(f"reportlab PDF generation failed: {e}")
+
+        # Ultimate fallback: Return a minimal valid PDF
+        logger.warning("No PDF library available, returning minimal PDF")
+        return self._minimal_pdf()
+
+    def _generate_reportlab_pdf(self, html_content: str) -> bytes:
+        """Generate PDF using reportlab with content extracted from HTML."""
+        import re
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.colors import HexColor, white, black
+        from reportlab.lib.units import inch
+        from reportlab.platypus import (
+            SimpleDocTemplate, Paragraph, Spacer, PageBreak,
+            Table, TableStyle, FrameBreak
+        )
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=0.75*inch,
+            leftMargin=0.75*inch,
+            topMargin=0.75*inch,
+            bottomMargin=0.75*inch
+        )
+
+        # Define colors
+        amd_red = HexColor('#ED1C24')
+        dark_blue = HexColor('#1a1a2e')
+
+        # Create styles
+        styles = getSampleStyleSheet()
+
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=amd_red,
+            spaceAfter=12,
+            alignment=TA_CENTER
+        )
+
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=16,
+            textColor=dark_blue,
+            spaceBefore=20,
+            spaceAfter=10
+        )
+
+        subheading_style = ParagraphStyle(
+            'CustomSubheading',
+            parent=styles['Heading3'],
+            fontSize=14,
+            textColor=amd_red,
+            spaceBefore=15,
+            spaceAfter=8
+        )
+
+        body_style = ParagraphStyle(
+            'CustomBody',
+            parent=styles['Normal'],
+            fontSize=11,
+            leading=16,
+            spaceAfter=10
+        )
+
+        highlight_style = ParagraphStyle(
+            'Highlight',
+            parent=styles['Normal'],
+            fontSize=12,
+            leading=18,
+            textColor=dark_blue,
+            backColor=HexColor('#f5f5f5'),
+            borderPadding=10,
+            spaceAfter=15
+        )
+
+        # Extract content from HTML using regex
+        def extract_text(pattern, default=""):
+            match = re.search(pattern, html_content, re.DOTALL)
+            if match:
+                text = match.group(1)
+                # Clean HTML tags
+                text = re.sub(r'<[^>]+>', ' ', text)
+                text = re.sub(r'\s+', ' ', text).strip()
+                return text
+            return default
+
+        # Extract personalization variables
+        first_name = extract_text(r'Prepared for</p>\s*<p[^>]*>([^<]+)</p>', 'Reader')
+        company_name = extract_text(r'at ([^<]+)</p>', 'your company')
+        personalized_hook = extract_text(r'<h3>A Message For You</h3>\s*<p>([^<]+)</p>', '')
+
+        # Extract sections
+        intro_section = extract_text(r'<h2>Redefining the Data Center[^<]*</h2>\s*<p>([^<]+)</p>', '')
+        three_stages = extract_text(r'<h2>Understanding the Three Stages[^<]*</h2>\s*<p>([^<]+)</p>', '')
+        leaders = extract_text(r'<h3>Data Center Leaders[^<]*</h3>\s*<p>([^<]+)</p>', '')
+        challengers = extract_text(r'<h3>Data Center Challengers[^<]*</h3>\s*<p>([^<]+)</p>', '')
+        observers = extract_text(r'<h3>Data Center Observers[^<]*</h3>\s*<p>([^<]+)</p>', '')
+        path_to_leadership = extract_text(r'<h2>The Path to Leadership[^<]*</h2>\s*<p>([^<]+)</p>', '')
+        modernization = extract_text(r'<h2>Modernization Models</h2>\s*<p>([^<]+)</p>', '')
+        why_amd = extract_text(r'<h2>Why AMD[^<]*</h2>\s*<p>([^<]+)</p>', '')
+
+        # Extract case study
+        case_company = extract_text(r'<h3[^>]*>Customer Success: ([^<]+)</h3>', '')
+        case_framing = extract_text(r'<strong>Why this matters[^<]*</strong><br>\s*([^<]+)</div>', '')
+        case_challenge = extract_text(r'<strong>The Challenge:</strong>\s*([^<]+)</p>', '')
+        case_solution = extract_text(r'<strong>The Solution:</strong>\s*([^<]+)</p>', '')
+        case_quote = extract_text(r'"([^"]+)"', '')
+        case_result = extract_text(r'<strong>The Result:</strong>\s*([^<]+)</p>', '')
+
+        # Extract CTA
+        personalized_cta = extract_text(r'<div class="personalized-cta">\s*([^<]+)</div>', '')
+
+        # Build document
+        story = []
+
+        # Cover page
+        story.append(Spacer(1, 2*inch))
+        story.append(Paragraph("AMD", ParagraphStyle('AMDLogo', parent=title_style, fontSize=28, textColor=amd_red)))
+        story.append(Spacer(1, 0.3*inch))
+        story.append(Paragraph("FROM OBSERVERS TO<br/>ENTERPRISE AI READINESS", title_style))
+        story.append(Spacer(1, 0.2*inch))
+        story.append(Paragraph("A Strategic Guide to Data Center Modernization", body_style))
+        story.append(Spacer(1, 1*inch))
+        story.append(Paragraph(f"<b>Prepared for {first_name}</b>", ParagraphStyle('Personalized', parent=body_style, alignment=TA_CENTER, fontSize=14)))
+        if company_name and company_name != 'your company':
+            story.append(Paragraph(f"at {company_name}", ParagraphStyle('Company', parent=body_style, alignment=TA_CENTER)))
+        story.append(PageBreak())
+
+        # Personalized Hook
+        if personalized_hook:
+            story.append(Paragraph("A Message For You", subheading_style))
+            story.append(Paragraph(personalized_hook, highlight_style))
+            story.append(Spacer(1, 0.3*inch))
+
+        # Intro section
+        if intro_section:
+            story.append(Paragraph("Redefining the Data Center: AI Readiness in the Age of Acceleration", heading_style))
+            story.append(Paragraph(intro_section, body_style))
+            story.append(Spacer(1, 0.2*inch))
+
+        # Three Stages
+        if three_stages:
+            story.append(Paragraph("Understanding the Three Stages of Data Center Modernization", heading_style))
+            story.append(Paragraph(three_stages, body_style))
+
+        if leaders:
+            story.append(Paragraph("Data Center Leaders (26%)", subheading_style))
+            story.append(Paragraph(leaders, body_style))
+
+        if challengers:
+            story.append(Paragraph("Data Center Challengers (32%)", subheading_style))
+            story.append(Paragraph(challengers, body_style))
+
+        if observers:
+            story.append(Paragraph("Data Center Observers (42%)", subheading_style))
+            story.append(Paragraph(observers, body_style))
+
+        # Path to Leadership
+        if path_to_leadership:
+            story.append(PageBreak())
+            story.append(Paragraph("The Path to Leadership: Moving Through the Stages", heading_style))
+            story.append(Paragraph(path_to_leadership, body_style))
+
+        # Modernization Models
+        if modernization:
+            story.append(Paragraph("Modernization Models", heading_style))
+            story.append(Paragraph(modernization, body_style))
+
+        # Case Study
+        if case_company:
+            story.append(PageBreak())
+            story.append(Paragraph(f"Customer Success: {case_company}", heading_style))
+            if case_framing:
+                story.append(Paragraph(f"<i>Why this matters for {company_name}: {case_framing}</i>", highlight_style))
+            if case_challenge:
+                story.append(Paragraph(f"<b>The Challenge:</b> {case_challenge}", body_style))
+            if case_solution:
+                story.append(Paragraph(f"<b>The Solution:</b> {case_solution}", body_style))
+            if case_quote:
+                story.append(Paragraph(f'<i>"{case_quote}"</i>', ParagraphStyle('Quote', parent=body_style, leftIndent=20, rightIndent=20)))
+            if case_result:
+                story.append(Paragraph(f"<b>The Result:</b> {case_result}", body_style))
+
+        # Why AMD
+        if why_amd:
+            story.append(Paragraph("Why AMD: Your Strategic Partner", heading_style))
+            story.append(Paragraph(why_amd, body_style))
+
+        # CTA
+        story.append(PageBreak())
+        story.append(Paragraph("Ready to Take the Next Step?", heading_style))
+        if personalized_cta:
+            story.append(Paragraph(personalized_cta, highlight_style))
+        story.append(Spacer(1, 0.5*inch))
+        story.append(Paragraph(f"<b>This guide was personalized for {first_name}</b>", ParagraphStyle('Footer', parent=body_style, alignment=TA_CENTER)))
+
+        # Build PDF
+        doc.build(story)
+        buffer.seek(0)
+        logger.info("Generated PDF using reportlab fallback")
+        return buffer.read()
+
+    def _minimal_pdf(self) -> bytes:
+        """Generate a minimal valid PDF file."""
+        # Minimal PDF structure
+        pdf = b"""%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 44 >>
+stream
+BT /F1 12 Tf 100 700 Td (Personalized Ebook) Tj ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000206 00000 n
+trailer
+<< /Size 5 /Root 1 0 R >>
+startxref
+300
+%%EOF"""
+        return pdf
+
+    def _generate_filename(self, email: str, job_id: int) -> str:
+        """Generate unique filename for PDF."""
+        # Hash email for privacy
+        email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        return f"ebook_{email_hash}_{job_id}_{timestamp}.pdf"
+
+    async def _store_pdf(
+        self,
+        pdf_bytes: bytes,
+        filename: str
+    ) -> tuple[str, str]:
+        """
+        Store PDF in Supabase Storage.
+
+        Args:
+            pdf_bytes: PDF content
+            filename: Target filename
+
+        Returns:
+            Tuple of (storage_path, signed_url)
+        """
+        if not self.supabase:
+            raise ValueError("Supabase client not configured")
+
+        storage_path = f"{self.storage_bucket}/{filename}"
+
+        # Handle mock mode - return mock URL without actual storage
+        if getattr(self.supabase, 'mock_mode', False) or self.supabase.client is None:
+            logger.info(f"[MOCK] Would store PDF at {storage_path}")
+            mock_url = f"https://mock-storage.example.com/{storage_path}?token=mock-signed-url"
+            return storage_path, mock_url
+
+        try:
+            # Upload to Supabase Storage
+            self.supabase.client.storage.from_(self.storage_bucket).upload(
+                filename,
+                pdf_bytes,
+                {"content-type": "application/pdf"}
+            )
+
+            # Generate signed URL
+            signed_url = self.supabase.client.storage.from_(
+                self.storage_bucket
+            ).create_signed_url(
+                filename,
+                PDF_EXPIRY_HOURS * 3600  # Convert to seconds
+            )
+
+            return storage_path, signed_url.get("signedURL", "")
+
+        except Exception as e:
+            logger.error(f"Failed to store PDF: {e}")
+            raise
+
+    async def get_pdf_url(self, storage_path: str) -> Optional[str]:
+        """
+        Get signed URL for existing PDF.
+
+        Args:
+            storage_path: Storage path of the PDF
+
+        Returns:
+            Signed URL or None
+        """
+        if not self.supabase:
+            return None
+
+        # Handle mock mode
+        if getattr(self.supabase, 'mock_mode', False) or self.supabase.client is None:
+            return f"https://mock-storage.example.com/{storage_path}?token=mock-signed-url"
+
+        try:
+            filename = storage_path.split("/")[-1]
+            signed_url = self.supabase.client.storage.from_(
+                self.storage_bucket
+            ).create_signed_url(
+                filename,
+                PDF_EXPIRY_HOURS * 3600
+            )
+            return signed_url.get("signedURL")
+        except Exception as e:
+            logger.error(f"Failed to get PDF URL: {e}")
+            return None
