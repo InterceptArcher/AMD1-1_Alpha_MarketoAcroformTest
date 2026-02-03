@@ -793,8 +793,8 @@ class PDFService:
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-top: 35px;
-            margin-top: 45px;
+            padding-top: 15px;
+            margin-top: 20px;
             border-top: 1px solid var(--amd-border);
             font-size: 9pt;
             color: var(--amd-text-muted);
@@ -946,9 +946,9 @@ class PDFService:
             background: linear-gradient(135deg, rgba(0, 200, 170, 0.15) 0%, rgba(0, 100, 200, 0.10) 100%);
             border: 2px solid rgba(0, 200, 170, 0.4);
             border-radius: 16px;
-            padding: 30px 40px;
+            padding: 24px 35px;
             text-align: center;
-            margin-top: 25px;
+            margin-top: 18px;
             page-break-inside: avoid;
         }
 
