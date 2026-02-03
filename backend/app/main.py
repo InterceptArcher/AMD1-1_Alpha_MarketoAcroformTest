@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.config import settings
-from app.routes import enrichment
+from app.routes import enrichment, marketo
 
 # Configure logging
 logging.basicConfig(
@@ -57,6 +57,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(enrichment.router)
+app.include_router(marketo.router)
 
 
 @app.get("/")

@@ -250,6 +250,37 @@ A more advanced PDF personalization approach using AcroForm fields:
 
 **Status:** Waiting for designer to deliver `amdtemplate_with_fields.pdf`. See `backend/assets/DESIGNER_SPEC.md` for requirements.
 
+### Marketo Integration (Planned)
+
+Enables Marketo-hosted forms to trigger personalized ebook generation:
+
+**Flow:**
+```
+User fills Marketo Form → Webhook to FastAPI → Enrich + Generate PDF →
+Return URL to Marketo → Marketo emails user with download link
+```
+
+**Why Marketo Integration?**
+- **Lead ownership**: Marketo captures and owns the lead for nurturing
+- **Email deliverability**: Marketo handles email sending with proper authentication
+- **Campaign tracking**: Built-in analytics for opens, clicks, conversions
+- **CRM sync**: Leads automatically sync to Salesforce/other CRMs
+
+**Key Components:**
+| Component | Purpose |
+|-----------|---------|
+| `POST /rad/marketo/webhook` | Receives form submissions from Marketo |
+| `MarketoService` | OAuth client for Marketo REST API |
+| Response Mapping | Returns `pdfUrl` for Marketo to store on lead |
+| Transactional Email | Marketo campaign sends PDF download link |
+
+**Constraints:**
+- Webhook must respond within 30 seconds (Marketo timeout)
+- Marketo cannot attach files to emails - must use download links
+- Shared secret header for webhook authentication
+
+**See:** [MARKETO_INTEGRATION_PLAN.md](MARKETO_INTEGRATION_PLAN.md) for full implementation details.
+
 ---
 
 ## Environment Variables
@@ -289,6 +320,13 @@ ZOOMINFO_API_KEY=...
 
 # Development
 MOCK_SUPABASE=true                   # Enable mock mode for local testing
+
+# Marketo Integration (optional)
+MARKETO_CLIENT_ID=...                # From Marketo Admin > LaunchPoint
+MARKETO_CLIENT_SECRET=...
+MARKETO_BASE_URL=https://xxx.mktorest.com
+MARKETO_WEBHOOK_SECRET=...           # Shared secret for webhook auth
+MARKETO_EMAIL_CAMPAIGN_ID=...        # Campaign ID for transactional email
 ```
 
 ### Supabase (Edge Functions)
@@ -388,11 +426,11 @@ pytest --cov=app      # With coverage
 - ✅ Deployment scripts
 
 ### Phase 2 - Beta
+- [ ] **Marketo Integration** - Webhook endpoint for form submissions (see below)
 - [ ] Supabase Queues for durable jobs
 - [ ] Batch enrichment endpoint
 - [ ] Rate limiting + circuit breakers
 - [ ] OpenTelemetry instrumentation
-- [ ] Marketing automation webhook
 
 ### Phase 3 - Production
 - [ ] A/B testing for LLM prompts

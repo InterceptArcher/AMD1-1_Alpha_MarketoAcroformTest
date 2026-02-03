@@ -33,10 +33,27 @@ class Settings:
     LLM_MODEL: str = "claude-3-5-haiku-20241022"  # Fast, cost-effective
     LLM_TIMEOUT: int = 30  # seconds (target <60s end-to-end)
 
+    # Marketo Integration
+    MARKETO_CLIENT_ID: Optional[str] = os.getenv("MARKETO_CLIENT_ID")
+    MARKETO_CLIENT_SECRET: Optional[str] = os.getenv("MARKETO_CLIENT_SECRET")
+    MARKETO_BASE_URL: Optional[str] = os.getenv("MARKETO_BASE_URL")
+    MARKETO_IDENTITY_URL: Optional[str] = os.getenv("MARKETO_IDENTITY_URL")
+    MARKETO_WEBHOOK_SECRET: Optional[str] = os.getenv("MARKETO_WEBHOOK_SECRET")
+    MARKETO_EMAIL_CAMPAIGN_ID: Optional[str] = os.getenv("MARKETO_EMAIL_CAMPAIGN_ID")
+
     # App Configuration
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     MOCK_MODE: bool = os.getenv("MOCK_SUPABASE", "false").lower() == "true"
+
+    def is_marketo_configured(self) -> bool:
+        """Check if Marketo integration is configured."""
+        return bool(
+            self.MARKETO_CLIENT_ID and
+            self.MARKETO_CLIENT_SECRET and
+            self.MARKETO_BASE_URL and
+            self.MARKETO_WEBHOOK_SECRET
+        )
 
     def validate(self) -> None:
         """Validate that required settings are present (skip in mock mode)."""
