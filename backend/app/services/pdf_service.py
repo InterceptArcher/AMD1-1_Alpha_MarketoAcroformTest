@@ -271,7 +271,8 @@ class PDFService:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>An Enterprise AI Readiness Framework</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- AMD Brand Fonts: Roboto Condensed (headings), Source Sans 3 (body - Syke alternative) -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         @page {
             size: letter;
@@ -284,13 +285,34 @@ class PDFService:
             padding: 0;
         }
 
+        /* Font definitions */
+        :root {
+            /* AMD Logo: Gill Sans with fallbacks for Linux servers */
+            --font-amd-logo: 'Gill Sans', 'Gill Sans MT', 'Avenir', 'Helvetica Neue', Arial, sans-serif;
+            /* Headings: Roboto Condensed */
+            --font-heading: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+            /* Body: Source Sans 3 (similar to Syke - clean geometric sans-serif) */
+            --font-body: 'Source Sans 3', 'Source Sans Pro', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+        }
+
         body {
-            font-family: 'Plus Jakarta Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            font-family: var(--font-body);
             line-height: 1.6;
             color: #f0f0f5;
             background: #0a0a12;
             font-size: 11pt;
             -webkit-font-smoothing: antialiased;
+        }
+
+        /* Headings use Roboto Condensed */
+        h1, h2, h3, h4, h5, h6,
+        .cover-title, .section-title, .chapter-title {
+            font-family: var(--font-heading);
+        }
+
+        /* AMD Logo uses Gill Sans */
+        .amd-logo {
+            font-family: var(--font-amd-logo);
         }
 
         /* AMD Brand Colors */
@@ -1357,6 +1379,7 @@ class PDFService:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Your Personalized Guide</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         @page {
             size: A4;
@@ -1364,12 +1387,16 @@ class PDFService:
         }
 
         body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Source Sans 3', 'Source Sans Pro', 'Helvetica Neue', Arial, sans-serif;
             line-height: 1.6;
             color: #333;
             max-width: 800px;
             margin: 0 auto;
             padding: 40px;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
         }
 
         .cover {

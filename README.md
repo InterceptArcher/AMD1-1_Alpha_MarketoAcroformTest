@@ -211,6 +211,21 @@ These inputs directly influence the LLM-generated content.
 - **Download Fallback**: Direct download button always available if email delivery fails
 - **Fallback**: Minimal valid PDF generated even without PDF libraries installed
 
+### Typography
+
+The PDF ebook uses AMD-aligned typography:
+
+| Purpose | Font | Notes |
+|---------|------|-------|
+| **Headings** | Roboto Condensed | Condensed sans-serif for impact (Google Fonts) |
+| **AMD Logo** | Gill Sans | Classic humanist sans with fallbacks for Linux |
+| **Body Text** | Source Sans 3 | Clean geometric sans-serif (Google Fonts) |
+
+**Brand Colors:**
+- Primary Accent: `#00c8aa` (AMD Cyan)
+- Dark Background: `#0a0a12`
+- Text: `#f0f0f5`
+
 ### AcroForm PDF Personalization (In Progress)
 
 A more advanced PDF personalization approach using AcroForm fields:
