@@ -267,3 +267,101 @@ class TestSourcePriority:
         assert SOURCE_PRIORITY["apollo"] > SOURCE_PRIORITY["pdl"]
         assert SOURCE_PRIORITY["apollo"] > SOURCE_PRIORITY["hunter"]
         assert SOURCE_PRIORITY["zoominfo"] > SOURCE_PRIORITY["pdl"]
+
+
+class TestEmployeeCountEstimation:
+    """Tests for employee count range estimation fallback."""
+
+    @pytest.fixture
+    def orchestrator(self, mock_supabase):
+        return RADOrchestrator(mock_supabase)
+
+    def test_estimate_from_range_standard(self, orchestrator):
+        """Should return midpoint for standard ranges."""
+        assert orchestrator._estimate_employee_count_from_range("1001-5000") == 3000
+        assert orchestrator._estimate_employee_count_from_range("51-200") == 125
+        assert orchestrator._estimate_employee_count_from_range("1-10") == 5
+
+    def test_estimate_from_range_open_ended(self, orchestrator):
+        """Should handle open-ended ranges like '10001+'."""
+        assert orchestrator._estimate_employee_count_from_range("10001+") == 15001
+        assert orchestrator._estimate_employee_count_from_range("5000+") == 7500
+
+    def test_estimate_from_range_with_commas(self, orchestrator):
+        """Should handle ranges with comma separators."""
+        assert orchestrator._estimate_employee_count_from_range("1,001-5,000") == 3000
+
+    def test_estimate_from_range_single_number(self, orchestrator):
+        """Should handle single numbers."""
+        assert orchestrator._estimate_employee_count_from_range("5000") == 5000
+
+    def test_estimate_from_range_invalid(self, orchestrator):
+        """Should return None for invalid inputs."""
+        assert orchestrator._estimate_employee_count_from_range(None) is None
+        assert orchestrator._estimate_employee_count_from_range("") is None
+        assert orchestrator._estimate_employee_count_from_range("unknown") is None
+
+    def test_resolve_profile_uses_range_fallback(self, orchestrator):
+        """
+        _resolve_profile: Should estimate employee_count from range when missing.
+        """
+        raw_data = {
+            "apollo": {"first_name": "Jane"},
+            "pdl": {},
+            "pdl_company": {
+                "employee_count_range": "1001-5000",
+                "name": "Aritzia"
+            },
+            "hunter": {},
+            "gnews": {},
+            "zoominfo": {}  # No employee_count here
+        }
+        orchestrator.data_sources = ["apollo", "pdl_company"]
+
+        result = orchestrator._resolve_profile("jane@aritzia.com", "aritzia.com", raw_data)
+
+        # Should use estimated count from range, not ZoomInfo mock (100)
+        assert result.get("employee_count") == 3000
+        assert result.get("employee_count_estimated") is True
+
+    def test_resolve_profile_uses_company_size_fallback(self, orchestrator):
+        """
+        _resolve_profile: Should estimate from company_size if no range available.
+        """
+        raw_data = {
+            "apollo": {"company_size": "501-1000"},
+            "pdl": {},
+            "pdl_company": {},
+            "hunter": {},
+            "gnews": {},
+            "zoominfo": {}
+        }
+        orchestrator.data_sources = ["apollo"]
+
+        result = orchestrator._resolve_profile("test@example.com", "example.com", raw_data)
+
+        assert result.get("employee_count") == 750
+        assert result.get("employee_count_estimated") is True
+
+    def test_resolve_profile_prefers_actual_count(self, orchestrator):
+        """
+        _resolve_profile: Should use actual count over estimated.
+        """
+        raw_data = {
+            "apollo": {},
+            "pdl": {},
+            "pdl_company": {
+                "employee_count": 4500,
+                "employee_count_range": "1001-5000"
+            },
+            "hunter": {},
+            "gnews": {},
+            "zoominfo": {}
+        }
+        orchestrator.data_sources = ["pdl_company"]
+
+        result = orchestrator._resolve_profile("test@example.com", "example.com", raw_data)
+
+        # Should use actual count, not estimate
+        assert result.get("employee_count") == 4500
+        assert result.get("employee_count_estimated") is None

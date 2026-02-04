@@ -261,6 +261,28 @@ class RADOrchestrator:
             if not normalized.get("employee_count") and pdl_company.get("employee_count"):
                 normalized["employee_count"] = pdl_company.get("employee_count")
 
+        # Fallback: estimate employee_count from range strings if still missing
+        # This prevents mock data (e.g., ZoomInfo mock = 100) from being used
+        if not normalized.get("employee_count"):
+            # Try employee_count_range first (e.g., "1001-5000")
+            range_str = normalized.get("employee_count_range")
+            if range_str:
+                estimated = self._estimate_employee_count_from_range(range_str)
+                if estimated:
+                    normalized["employee_count"] = estimated
+                    normalized["employee_count_estimated"] = True
+                    logger.info(f"Estimated employee_count={estimated} from range '{range_str}'")
+
+            # Fallback to company_size (e.g., "51-200")
+            if not normalized.get("employee_count"):
+                size_str = normalized.get("company_size")
+                if size_str:
+                    estimated = self._estimate_employee_count_from_range(size_str)
+                    if estimated:
+                        normalized["employee_count"] = estimated
+                        normalized["employee_count_estimated"] = True
+                        logger.info(f"Estimated employee_count={estimated} from company_size '{size_str}'")
+
         return normalized
 
     def _get_field_mappings(self) -> Dict[str, List[Tuple[str, str]]]:
@@ -446,6 +468,55 @@ class RADOrchestrator:
 
         # Cap at 1.0
         return min(1.0, coverage_score + priority_bonus)
+
+    def _estimate_employee_count_from_range(self, range_str: str) -> Optional[int]:
+        """
+        Parse an employee count range string and return an estimated count.
+
+        Handles formats like:
+        - "1001-5000" -> 3000 (midpoint)
+        - "51-200" -> 125 (midpoint)
+        - "10001+" -> 15000 (estimate for open-ended)
+        - "1-10" -> 5 (midpoint)
+
+        Args:
+            range_str: Employee count range string
+
+        Returns:
+            Estimated employee count or None if unparseable
+        """
+        if not range_str or not isinstance(range_str, str):
+            return None
+
+        # Clean up the string
+        range_str = range_str.strip().replace(",", "").replace(" ", "")
+
+        # Handle open-ended ranges like "10001+" or "5000+"
+        if range_str.endswith("+"):
+            try:
+                base = int(range_str[:-1])
+                # Estimate 1.5x the base for open-ended ranges
+                return int(base * 1.5)
+            except ValueError:
+                return None
+
+        # Handle range formats like "1001-5000"
+        if "-" in range_str:
+            parts = range_str.split("-")
+            if len(parts) == 2:
+                try:
+                    low = int(parts[0])
+                    high = int(parts[1])
+                    # Return midpoint
+                    return (low + high) // 2
+                except ValueError:
+                    return None
+
+        # Try parsing as a single number
+        try:
+            return int(range_str)
+        except ValueError:
+            return None
 
     async def enrich_batch(
         self,
