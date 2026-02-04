@@ -91,6 +91,7 @@ const GOAL_MESSAGES: Record<string, string> = {
 export default function LoadingSpinner({ message, userContext }: LoadingSpinnerProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [displayMessage, setDisplayMessage] = useState(message || 'Personalizing your content...');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Generate personalized loading steps - memoized to prevent recreation
   const steps = useMemo(() => {
@@ -132,15 +133,26 @@ export default function LoadingSpinner({ message, userContext }: LoadingSpinnerP
     return result;
   }, [userContext?.firstName, userContext?.company, userContext?.industry, userContext?.persona, userContext?.goal]);
 
+  // Initialize on first render with userContext
   useEffect(() => {
     if (!userContext) {
       setDisplayMessage(message || 'Loading...');
       return;
     }
 
-    // Set initial message
-    setDisplayMessage(steps[0]);
-    setCurrentStep(0);
+    // Only initialize once
+    if (!isInitialized) {
+      setDisplayMessage(steps[0]);
+      setCurrentStep(0);
+      setIsInitialized(true);
+    }
+  }, [userContext, steps, message, isInitialized]);
+
+  // Separate effect for the interval - only runs after initialization
+  useEffect(() => {
+    if (!userContext || !isInitialized) {
+      return;
+    }
 
     // Cycle through personalized messages (pace to show most steps within loading time)
     const interval = setInterval(() => {
@@ -156,10 +168,10 @@ export default function LoadingSpinner({ message, userContext }: LoadingSpinnerP
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [userContext, steps, message]);
+  }, [userContext, isInitialized, steps]);
 
-  // Calculate progress percentage
-  const progress = Math.min(((currentStep + 1) / steps.length) * 100, 95);
+  // Calculate progress percentage - start at 8% minimum so bar is visible
+  const progress = Math.max(8, Math.min(((currentStep + 1) / steps.length) * 100, 95));
 
   return (
     <div
@@ -222,11 +234,14 @@ export default function LoadingSpinner({ message, userContext }: LoadingSpinnerP
           </div>
 
           {/* Progress bar */}
-          <div className="relative h-2.5 rounded-full bg-white/10 overflow-hidden">
+          <div className="relative h-3 rounded-full bg-white/15 overflow-hidden shadow-inner">
             <div
-              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#00c8aa] to-[#00e0be] transition-all duration-700 ease-out progress-shine"
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#00c8aa] via-[#00d4b4] to-[#00e0be] transition-all duration-700 ease-out shadow-[0_0_10px_rgba(0,200,170,0.5)]"
               style={{ width: `${progress}%` }}
-            />
+            >
+              {/* Animated shine effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_1.5s_ease-in-out_infinite]" />
+            </div>
           </div>
 
           {/* Step counter */}
