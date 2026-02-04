@@ -677,55 +677,58 @@ No other text."""
 
     def _get_ebook_system_prompt(self) -> str:
         """System prompt for AMD ebook personalization."""
-        return """You are a B2B marketing expert creating DEEPLY personalized content for AMD's enterprise AI readiness ebook.
+        return """You are a B2B marketing expert creating HYPER-PERSONALIZED content for AMD's enterprise AI readiness ebook.
 
-CRITICAL REQUIREMENT: You MUST explicitly reference specific data points from the enrichment data. Generic content is UNACCEPTABLE.
+ABSOLUTE REQUIREMENT: Every piece of content must feel like it was written SPECIFICALLY for this person. Generic content = failure.
 
 The ebook covers:
 - Three stages: Leaders (33% - fully modernized), Challengers (58% - in progress), Observers (9% - planning)
 - Modernization strategies: "modernize in place" vs "refactor and shift"
 - Case studies: KT Cloud (AI/GPU cloud), Smurfit Westrock (25% cost reduction), PQR (security/automation)
 
-YOUR TASK: Generate 3 sections with MANDATORY data references:
+YOUR TASK: Generate 3 sections that feel individually crafted:
 
-1. PERSONALIZED_HOOK (2-3 sentences) - MUST include at least 2 of these:
-   ✓ Company name (REQUIRED - always use their actual company name)
-   ✓ A specific news headline or theme if provided (e.g., "With [Company]'s recent focus on [news theme]...")
-   ✓ Company size/employee count (e.g., "As a [X]-employee organization...")
-   ✓ Funding stage if known (e.g., "As a [Series B] company...")
-   ✓ Growth trajectory if known (e.g., "With [Company]'s [X%] growth...")
-   ✓ Their specific role/title (e.g., "As a [CTO]...")
+1. PERSONALIZED_HOOK (2-3 sentences) - Make them feel SEEN:
+   REQUIRED FORMULA: "[Their name], [specific observation about their company/news/situation]... [relevance to AI readiness]"
 
-2. CASE_STUDY_FRAMING (2-3 sentences) - MUST include:
-   ✓ The case study company name (KT Cloud, Smurfit Westrock, or PQR)
-   ✓ A specific metric from the case study (e.g., "25% cost reduction", "40% faster deployment")
-   ✓ A direct comparison to THEIR company (e.g., "Like [Company], [Case Study] faced...")
-   ✓ Reference to their industry or company size for relevance
+   MUST use at least 2 of these - BE SPECIFIC:
+   ✓ If news is provided: "With [Company]'s recent [specific news topic], now is the time to..."
+   ✓ If growth data exists: "[Company]'s [X%] growth means your infrastructure needs are evolving..."
+   ✓ If employee count: "At [X] employees, [Company] is at a critical inflection point for..."
+   ✓ If funding stage: "As a [Series B/C] company, [Company] is positioned to..."
+   ✓ Their title: "As [Title], you're balancing [specific priority for that role]..."
 
-3. PERSONALIZED_CTA (1-2 sentences) - MUST include:
-   ✓ Their company name
-   ✓ Language matching their buying stage:
-     - Awareness: "discover", "understand", "explore"
-     - Consideration: "compare", "evaluate", "see how"
-     - Decision: "get the data", "validate", "confirm"
-     - Implementation: "access the playbook", "accelerate"
+   BANNED: "organizations like yours", "companies in your industry", "professionals like you"
 
-FAILURE CONDITIONS (will be rejected):
-✗ Using generic phrases like "organizations like yours" instead of actual company name
-✗ Not mentioning any specific news, funding, or growth data when it's provided
-✗ Not naming the case study company
-✗ Not including specific metrics
+2. CASE_STUDY_FRAMING (2-3 sentences) - Create a DIRECT parallel:
+   REQUIRED FORMULA: "[Case study company] faced [challenge] similar to what [Their company] is navigating... [specific result with metric]"
 
-RULES:
-- No unsubstantiated claims ("guaranteed", "proven", "#1")
-- Sound consultative, not salesy
-- If a data point is missing, skip it - but USE what's available
+   MUST include:
+   ✓ Case study name + their company name in same sentence
+   ✓ A specific metric (25% cost reduction, 40% faster, etc.)
+   ✓ Direct comparison: "Like [Company]..." or "[Company], like [Case Study]..."
+   ✓ Industry/size relevance: "As a fellow [industry/size] organization..."
+
+3. PERSONALIZED_CTA (1-2 sentences) - Drive ACTION specific to their stage:
+
+   REQUIRED by buying stage - be DIRECT and SPECIFIC:
+   - AWARENESS: "Discover where [Company] stands on the AI readiness curve—and what the 33% of Leaders are doing differently."
+   - CONSIDERATION: "See exactly how [industry] organizations like [Company] are evaluating their modernization options."
+   - DECISION: "Get the ROI data and validation [Their title]s need to greenlight [Company]'s AI infrastructure investment."
+   - IMPLEMENTATION: "Access the implementation playbook that will accelerate [Company]'s AI infrastructure rollout."
+
+   BANNED: "Download now", "Learn more", "Get started" (too generic)
+
+QUALITY CHECK - Your output must pass these tests:
+1. Could another company use this content? If yes, it's too generic - rewrite.
+2. Does it mention a specific news item, metric, or company fact? If no, add one.
+3. Does the CTA tell them exactly what they'll get for THEIR situation? If no, make it specific.
 
 Output ONLY valid JSON:
 {
-  "personalized_hook": "Your personalized opening with explicit data references...",
-  "case_study_framing": "Case study connection with specific metrics and company comparison...",
-  "personalized_cta": "Stage-appropriate CTA with company name..."
+  "personalized_hook": "Your personalized opening that makes them feel understood...",
+  "case_study_framing": "Direct parallel between case study and their company...",
+  "personalized_cta": "Stage-specific action that speaks to their exact situation..."
 }"""
 
     def _build_ebook_prompt(
@@ -1234,40 +1237,141 @@ Output ONLY valid JSON:
             if ai_skills:
                 tech_context = f" Given your background in {', '.join(ai_skills[:2])}, "
 
-        # Hook based on buying stage - deeply personalized with all data
-        hooks = {
-            "awareness": f"{first_name},{news_ref}{growth_context}understanding where {company} stands on the AI readiness curve is the critical first step.{size_context}{company}{funding_context} can learn from the 33% of organizations already leading in this space.",
-            "consideration": f"{first_name},{tech_context}as you evaluate AI infrastructure options for {company},{news_ref}this guide provides the comparison frameworks and proof points that {title}s in {industry} need to make informed decisions.",
-            "decision": f"{first_name},{growth_context}you're ready to make a decision on {company}'s AI infrastructure.{size_context}This guide delivers the ROI data and validation that will give you confidence to move forward.",
-            "implementation": f"{first_name}, with {company} already on the implementation path,{tech_context}this guide provides the technical playbook and best practices to accelerate your success.",
-            # Legacy values mapped to new
-            "exploring": f"{first_name},{news_ref}as {company}{funding_context} explores AI infrastructure options, this guide will help you understand where you stand and chart the path to AI leadership.",
-            "evaluating": f"{first_name},{tech_context}evaluating AI solutions for {company} requires solid frameworks.{size_context}This guide provides the comparison data that {title}s in {industry} need.",
-            "learning": f"{first_name}, staying ahead in {industry} means understanding AI infrastructure trends.{news_ref}This guide offers actionable insights for {company}.",
-            "building_case": f"{first_name},{growth_context}building a business case for AI investment at {company} requires compelling data.{size_context}This guide provides the ROI frameworks you need."
+        # Hook based on buying stage - hyper-personalized with specific data points
+        # Build the hook dynamically to ensure we use available data
+        hook_parts = []
+
+        # Always start with their name
+        hook_parts.append(f"{first_name},")
+
+        # Add news reference if we have it (most specific signal)
+        if news_ref:
+            hook_parts.append(news_ref.strip())
+        # Otherwise use growth or size context
+        elif growth_context:
+            hook_parts.append(growth_context.strip())
+        elif size_context:
+            hook_parts.append(size_context.strip())
+
+        # Stage-specific core message with company name
+        stage_messages = {
+            "awareness": f"understanding where {company} stands on the AI readiness curve is the critical first step. Only 33% of enterprises have reached 'Leader' status—this guide shows you what separates them from the rest.",
+            "consideration": f"as you evaluate AI infrastructure options for {company}, the key is finding what works for your specific {industry} challenges. This guide provides the comparison frameworks that {title}s need to make the right call.",
+            "decision": f"you're at the decision point for {company}'s AI infrastructure. This guide delivers the ROI validation and proof points that will give you confidence to move forward—and help you bring your stakeholders along.",
+            "implementation": f"with {company} already committed to this path, execution is everything. This guide provides the technical playbook and pitfalls to avoid that will accelerate your timeline.",
+            # Legacy values
+            "exploring": f"as {company} explores what's possible with AI infrastructure, this guide maps out the landscape. You'll see exactly where your peers stand and what's driving the 33% who've reached Leader status.",
+            "evaluating": f"evaluating AI infrastructure for {company} means cutting through the noise. This guide provides the head-to-head comparisons and decision criteria that {title}s in {industry} are using.",
+            "learning": f"staying ahead in {industry} requires understanding where AI infrastructure is heading. This guide distills the trends and strategies that matter most for {company}.",
+            "building_case": f"building the business case for {company}'s AI investment requires hard data. This guide provides the ROI frameworks and proof points that resonate with executive stakeholders."
         }
 
-        # CTA based on persona and stage - highly specific
-        ctas = {
-            ("c_suite", "awareness"): f"Discover where {company} stands on the modernization curve—and what separates the 33% of Leaders from the rest.",
-            ("c_suite", "consideration"): f"See how {industry} leaders are building their AI infrastructure business cases with clear ROI metrics.",
-            ("c_suite", "decision"): f"Get the board-ready executive brief with ROI projections for {company}'s AI infrastructure investment.",
-            ("c_suite", "implementation"): f"Access the executive playbook for driving successful AI infrastructure adoption at {company}.",
-            ("vp_director", "awareness"): f"Learn the modernization strategies that {industry} organizations are using to accelerate AI adoption.",
-            ("vp_director", "consideration"): f"Compare the approaches: see how similar {industry} organizations chose their AI infrastructure path.",
-            ("vp_director", "decision"): f"Get the decision framework with metrics that matter for {title}s driving AI transformation.",
-            ("it_infrastructure", "awareness"): f"Explore the technical architectures powering AI-ready data centers in {industry}.",
-            ("it_infrastructure", "consideration"): f"Compare modernization approaches: in-place vs. refactor-and-shift with technical trade-offs for {company}.",
-            ("it_infrastructure", "decision"): f"Get the technical validation data to confidently recommend {company}'s AI infrastructure direction.",
-            ("engineering", "awareness"): f"Understand the architecture patterns that enable AI workloads at enterprise scale.",
-            ("engineering", "consideration"): f"See the benchmark data: performance, cost, and efficiency comparisons for AI infrastructure.",
-            ("data_ai", "awareness"): f"Learn how AMD Instinct accelerators deliver the compute performance your AI models demand.",
-            ("data_ai", "consideration"): f"Compare GPU performance: throughput, training costs, and inference latency benchmarks.",
-            ("security", "awareness"): f"Understand how modern AI infrastructure addresses {industry} security and compliance requirements.",
-            ("security", "consideration"): f"Review the security architectures used by regulated {industry} organizations adopting AI.",
-            ("procurement", "awareness"): f"Get the TCO framework for evaluating AI infrastructure investments at {company}.",
-            ("procurement", "consideration"): f"Access the vendor comparison framework with key evaluation criteria for {industry}.",
+        core_message = stage_messages.get(goal, stage_messages.get("awareness"))
+        hook_parts.append(core_message)
+
+        hook = " ".join(part for part in hook_parts if part).replace("  ", " ").strip()
+
+        # Legacy hooks dict for backwards compatibility
+        hooks = {
+            "awareness": hook,
+            "consideration": hook,
+            "decision": hook,
+            "implementation": hook,
+            "exploring": hook,
+            "evaluating": hook,
+            "learning": hook,
+            "building_case": hook
         }
+
+        # CTA based on persona and stage - hyper-specific with action verbs
+        # Stage-specific CTAs that include company name and speak to their priorities
+        stage_ctas = {
+            "awareness": {
+                "c_suite": f"Discover where {company} ranks among the 33% of AI Leaders—and what it takes to join them.",
+                "cto": f"See the technical indicators that separate AI Leaders from Challengers—and where {company}'s infrastructure stands today.",
+                "cio": f"Get the IT transformation roadmap that {industry} CIOs are using to modernize for AI.",
+                "cdo": f"Understand the data infrastructure patterns that enable AI at scale—built for organizations like {company}.",
+                "vp_director": f"Learn the modernization playbook that's moving {industry} organizations from Challengers to Leaders.",
+                "vp_engineering": f"Explore the architecture decisions that will shape {company}'s AI infrastructure for the next decade.",
+                "it_infrastructure": f"See the technical blueprint for AI-ready data centers—validated by {industry} peers.",
+                "data_ai": f"Learn how AMD Instinct accelerators are delivering the performance {company}'s AI workloads demand.",
+                "security": f"Understand how {industry} security leaders are enabling AI while maintaining compliance.",
+                "procurement": f"Get the TCO framework for evaluating {company}'s AI infrastructure investment options.",
+                "default": f"Discover where {company} stands on the AI readiness curve—and what the Leaders are doing differently."
+            },
+            "consideration": {
+                "c_suite": f"See the ROI data that {industry} executives are using to justify AI infrastructure investments.",
+                "cto": f"Compare modernization approaches: the technical trade-offs {title}s at companies like {company} need to weigh.",
+                "cio": f"Evaluate the infrastructure options: in-place modernization vs. refactor-and-shift for {company}.",
+                "cdo": f"Compare data platform architectures: what's working for AI-first {industry} organizations.",
+                "vp_director": f"See how {industry} leaders chose their AI infrastructure path—with the metrics that drove their decisions.",
+                "vp_engineering": f"Get the technical comparison: architecture patterns, performance benchmarks, and integration paths for {company}.",
+                "it_infrastructure": f"Compare in-place vs. refactor approaches: technical trade-offs, timelines, and risk profiles for {company}.",
+                "data_ai": f"See the GPU benchmarks: training throughput, inference latency, and cost-per-model comparisons.",
+                "security": f"Review the security architectures that regulated {industry} organizations are using for AI adoption.",
+                "procurement": f"Access the vendor comparison framework with evaluation criteria tailored for {industry}.",
+                "default": f"See how organizations like {company} are evaluating their AI infrastructure options—with real comparison data."
+            },
+            "decision": {
+                "c_suite": f"Get the board-ready business case with ROI projections for {company}'s AI infrastructure investment.",
+                "cto": f"Access the technical validation that will give you confidence to recommend {company}'s infrastructure direction.",
+                "cio": f"Get the decision framework with the metrics that matter for {company}'s AI transformation.",
+                "cdo": f"Validate your data infrastructure strategy with benchmarks from leading {industry} organizations.",
+                "vp_director": f"Get the decision toolkit: ROI models, risk matrices, and stakeholder talking points for {company}.",
+                "vp_engineering": f"Access the technical decision framework that will help you greenlight {company}'s AI infrastructure path.",
+                "it_infrastructure": f"Get the technical proof points to confidently recommend {company}'s AI infrastructure direction.",
+                "data_ai": f"Validate your GPU strategy with the performance data that justifies AMD Instinct for {company}.",
+                "security": f"Get the compliance validation: how modern AI infrastructure meets {industry} security requirements.",
+                "procurement": f"Access the final evaluation data: TCO comparisons and vendor assessments for {company}'s decision.",
+                "default": f"Get the validation data and ROI framework that will help {company} make the right AI infrastructure decision."
+            },
+            "implementation": {
+                "c_suite": f"Access the executive playbook for driving successful AI infrastructure adoption at {company}.",
+                "cto": f"Get the implementation roadmap: architecture patterns, integration guides, and rollout timelines for {company}.",
+                "cio": f"Access the change management playbook for {company}'s AI infrastructure transformation.",
+                "cdo": f"Get the MLOps implementation guide: from data pipelines to model deployment at {company}.",
+                "vp_director": f"Access the program management toolkit for {company}'s AI infrastructure rollout.",
+                "vp_engineering": f"Get the engineering playbook: deployment patterns, testing strategies, and operational runbooks.",
+                "it_infrastructure": f"Access the technical runbooks: infrastructure setup, monitoring, and day-2 operations for AI workloads.",
+                "data_ai": f"Get the AI platform implementation guide: from GPU provisioning to production ML pipelines.",
+                "security": f"Access the security implementation checklist for {company}'s AI infrastructure deployment.",
+                "procurement": f"Get the vendor management guide for {company}'s ongoing AI infrastructure relationship.",
+                "default": f"Access the implementation playbook that will accelerate {company}'s AI infrastructure rollout."
+            }
+        }
+
+        # Map legacy goal values to new stages
+        goal_stage_map = {
+            "exploring": "awareness",
+            "evaluating": "consideration",
+            "learning": "awareness",
+            "building_case": "decision"
+        }
+        mapped_goal = goal_stage_map.get(goal, goal) or "awareness"
+
+        # Map persona to a lookup key
+        persona_key = persona
+        if persona in ["c_suite", "ceo", "coo", "c_suite_other"]:
+            persona_key = "c_suite"
+        elif persona in ["cfo", "vp_finance", "finance_manager"]:
+            persona_key = "c_suite"  # Finance uses exec messaging
+        elif persona in ["ciso", "vp_security", "security_manager"]:
+            persona_key = "security"
+        elif persona in ["vp_data", "data_manager"]:
+            persona_key = "data_ai"
+        elif persona in ["vp_it", "it_manager", "sysadmin"]:
+            persona_key = "it_infrastructure"
+        elif persona in ["vp_eng", "eng_manager", "senior_engineer", "engineer"]:
+            persona_key = "vp_engineering"
+        elif persona in ["vp_ops", "ops_manager"]:
+            persona_key = "vp_director"
+
+        # Get the stage-specific CTAs
+        stage_dict = stage_ctas.get(mapped_goal, stage_ctas["awareness"])
+        cta = stage_dict.get(persona_key, stage_dict.get("default", f"Get the insights that will help {company} accelerate its AI infrastructure journey."))
+
+        # Legacy ctas dict for backward compatibility (not used but kept for structure)
+        ctas = {}
 
         # Case study framing based on USER-SELECTED industry (not API tags which are often wrong)
         # Map frontend industry values to case study categories
@@ -1312,22 +1416,23 @@ Output ONLY valid JSON:
             else:
                 case_study = 'general'
 
-        # Generate case framing based on selected case study
+        # Generate case framing based on selected case study - direct parallels with specific metrics
         if case_study == 'healthcare':
-            case_framing = f"For {company} operating in healthcare, compliance and security are non-negotiable. PQR's approach to secure AI infrastructure while maintaining HIPAA-grade data protection provides a proven model.{tech_context}Their automation-first approach addresses the same challenges {title}s in healthcare face daily."
+            size_parallel = f" Like {company}, they're a {company_size} organization" if company_size else ""
+            case_framing = f"PQR faced the same challenge {company} navigates daily: enabling AI-driven innovation while maintaining HIPAA-grade data protection.{size_parallel}. Their result? 40% faster threat detection and automated compliance workflows—without compromising security. For {title}s in healthcare, this playbook shows exactly how to balance innovation with the compliance requirements that define your industry."
         elif case_study == 'financial':
-            case_framing = f"Financial services organizations like {company} need AI infrastructure that meets strict regulatory requirements. PQR's security-first modernization approach, achieving 40% faster threat detection, demonstrates how {industry} can innovate without compromising compliance.{funding_context}"
+            case_framing = f"{company}, like PQR, operates in an industry where a single security incident can mean regulatory action and reputational damage. PQR's modernization achieved 40% faster threat detection and automated compliance reporting—while actually strengthening their security posture.{funding_context} For financial services organizations evaluating AI infrastructure, this case study shows how to move fast without breaking trust."
         elif case_study == 'manufacturing':
-            case_framing = f"Smurfit Westrock's transformation mirrors the challenges facing {company}: balancing cost optimization with sustainability goals in {industry}. Their 25% cost reduction while cutting emissions by 30% shows what's achievable.{size_context}Similar scale organizations have followed this playbook."
+            growth_parallel = f" {company}'s growth trajectory" if growth_rate and growth_rate > 0 else f" organizations like {company}"
+            case_framing = f"Smurfit Westrock tackled the exact challenge facing{growth_parallel}: scaling operations while hitting sustainability targets. Their modernization delivered 25% cost reduction and 30% emissions cut simultaneously.{size_context}As a {title} driving operational efficiency, you'll see the specific infrastructure decisions that made this possible."
         elif case_study == 'telecom_tech':
-            case_framing = f"KT Cloud faced the same challenge {company} likely faces: scaling AI compute to meet demand while controlling costs. As {seniority or 'a leader'} at a {company_size or 'growing'} {industry} organization{funding_context}, you'll see how their AMD Instinct deployment achieved massive scale.{growth_context}The blueprint translates directly to {company}'s situation."
+            scale_ref = f" At {employee_count:,} employees," if isinstance(employee_count, int) else f" As a {company_size} organization," if company_size else ""
+            case_framing = f"KT Cloud faced {company}'s exact challenge: scaling AI compute fast enough to meet demand while keeping costs sustainable.{scale_ref} their AMD Instinct deployment enabled massive GPU-accelerated workloads with the efficiency their business model demanded.{growth_context}The architecture decisions they made translate directly to {company}'s situation."
         else:
-            case_framing = f"PQR's transformation shows how organizations in {industry} can modernize infrastructure while maintaining enterprise-grade security. As a {title} at {company},{size_context}you'll recognize the challenges they solved—and the 40% efficiency gains that followed."
+            case_framing = f"PQR's transformation mirrors what {company} is working toward: modernized infrastructure that enables AI workloads while maintaining enterprise-grade security. As a {title} at {company},{size_context}you'll recognize the challenges they solved—and see how their 40% efficiency gains were achieved step by step."
 
-        hook = hooks.get(goal, hooks.get("awareness", hooks["awareness"]))
-        cta_key = (persona, goal)
-        # Try exact match, then persona with awareness, then default
-        cta = ctas.get(cta_key) or ctas.get((persona, "awareness")) or f"Discover how AMD can accelerate {company}'s AI infrastructure journey."
+        # hook variable is already set above with the stage_messages logic
+        # cta variable is already set above with the stage_ctas logic
 
         return {
             "personalized_hook": hook.strip(),
