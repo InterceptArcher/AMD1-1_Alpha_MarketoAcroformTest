@@ -68,45 +68,28 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # 1. Link & Pull FIRST (Let this run before we touch .env files)
-      - name: Vercel Link & Pull
+      # Build & Deploy to Vercel from frontend directory
+      - name: Vercel Build & Deploy
+        id: vercel-deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.PROJECT_ID }}
           PROJECT_NAME: ${{ needs.provision-stack.outputs.project_name }}
-        run: |
-          vercel link --yes --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID --project=$PROJECT_NAME
-          
-          # This command creates .env.local and deletes our keys if we added them too early
-          vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
-
-      # 2. Download the keys from Job 1
-      - name: Download Env Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: supabase-env
-          path: .
-
-      # 3. APPEND keys to .env.local (Refilling what 'pull' might have deleted)
-      # 3. Clean and Inject Keys (The Fix)
-      # 3. Build & Deploy to Vercel (using env vars already configured in Vercel)
-      - name: Vercel Build & Deploy
-        id: vercel-deploy
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          # Skip loading delay for preview builds (so Playwright tests pass)
           NEXT_PUBLIC_SKIP_LOADING_DELAY: 'true'
         run: |
+          cd frontend
+
+          # Link & Pull
+          vercel link --yes --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID --project=$PROJECT_NAME
+          vercel pull --yes --environment=preview --token=$VERCEL_TOKEN
+
           # Add skip loading delay for preview builds
           vercel env rm NEXT_PUBLIC_SKIP_LOADING_DELAY preview --token=$VERCEL_TOKEN --yes || true
-          printf "%s\nn\n" "true" | vercel env add NEXT_PUBLIC_SKIP_LOADING_DELAY preview --token=$VERCEL_TOKEN
+          printf "%s\n" "true" | vercel env add NEXT_PUBLIC_SKIP_LOADING_DELAY preview --token=$VERCEL_TOKEN
 
           # Inject into local env file for build
           echo "NEXT_PUBLIC_SKIP_LOADING_DELAY=true" >> .env.local
-          if [ -f .vercel/.env.preview.local ]; then
-            echo "NEXT_PUBLIC_SKIP_LOADING_DELAY=true" >> .vercel/.env.preview.local
-          fi
 
           # Build and Deploy (Supabase env vars already configured in Vercel)
           vercel build --token=$VERCEL_TOKEN
@@ -276,6 +259,8 @@ jobs:
         run: |
           # Install CLI
           npm install --global vercel@latest
+
+          cd frontend
 
           # Link & Pull
           vercel link --yes --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID --project=$PROJECT_NAME
