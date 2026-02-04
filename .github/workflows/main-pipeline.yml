@@ -35,36 +35,14 @@ jobs:
           echo "fe_provider=$PROVIDER" >> $GITHUB_OUTPUT
           echo "project_name=$PROJECT" >> $GITHUB_OUTPUT
 
-      - name: Run Backend Deployment Script
-        id: deploy-backend
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      # Skip Supabase provisioning - backend already on Render, Vercel has env vars
+      - name: Create Placeholder Env File
         run: |
-          chmod +x scripts/deploy-backend-supabase.sh
-          ./scripts/deploy-backend-supabase.sh
+          echo "# Supabase env vars are configured in Vercel" > .env
+          echo "PLACEHOLDER=true" >> .env
+          echo "✅ Created placeholder .env file"
 
-      # --- FIX: FIND AND MOVE THE .ENV FILE ---
-      - name: Locate and Move .env
-        run: |
-          echo "🔍 Searching for .env file..."
-          # Find .env file (ignoring node_modules)
-          FOUND_PATH=$(find . -name ".env" -not -path "*/node_modules/*" | head -n 1)
-          
-          if [ -z "$FOUND_PATH" ]; then
-            echo "::error::❌ Could not find .env file anywhere!"
-            exit 1
-          fi
-
-          echo "✅ Found .env at: $FOUND_PATH"
-          
-          # If it's not already in the root, move it here
-          if [ "$FOUND_PATH" != "./.env" ]; then
-            echo "📦 Moving $FOUND_PATH to root..."
-            mv "$FOUND_PATH" .env
-          fi
-
-      # --- UPLOAD STEP (Now guaranteed to work) ---
+      # --- UPLOAD STEP ---
       - name: Upload .env as Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -112,57 +90,15 @@ jobs:
 
       # 3. APPEND keys to .env.local (Refilling what 'pull' might have deleted)
       # 3. Clean and Inject Keys (The Fix)
-      # 3. Clean and Inject Keys (The "Nuclear" Fix)
-      - name: Inject Keys
-        id: inject-keys
-        run: |
-          echo "🧹 Cleaning invisible characters from .env..."
-          tr -d '\r' < .env > .env.clean
-          
-          # Load keys so we can output them to GitHub
-          set -a
-          source .env.clean
-          set +a
-          
-          # --- THE FIX IS HERE ---
-          # 1. Prepare the content we want to inject
-          KEYS_CONTENT=$(cat .env.clean)
-          
-          # 2. Append to Root .env.local (Standard Next.js)
-          echo "" >> .env.local
-          echo "$KEYS_CONTENT" >> .env.local
-          
-          # 3. Append to Vercel's Hidden Priority File (CRITICAL)
-          # Vercel pull creates this, and it overrides everything else.
-          # We append our keys to the bottom so they "win".
-          if [ -f .vercel/.env.preview.local ]; then
-             echo "Found Vercel priority file. Overwriting keys..."
-             echo "" >> .vercel/.env.preview.local
-             echo "$KEYS_CONTENT" >> .vercel/.env.preview.local
-          fi
-
-          # 4. Output to GitHub for the CLI steps
-          echo "sb_url=$NEXT_PUBLIC_SUPABASE_URL" >> $GITHUB_OUTPUT
-          echo "sb_anon=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> $GITHUB_OUTPUT
-
-      # 4. Sync, Build & Deploy
+      # 3. Build & Deploy to Vercel (using env vars already configured in Vercel)
       - name: Vercel Build & Deploy
         id: vercel-deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          SB_URL: ${{ steps.inject-keys.outputs.sb_url }}
-          SB_ANON: ${{ steps.inject-keys.outputs.sb_anon }}
           # Skip loading delay for preview builds (so Playwright tests pass)
           NEXT_PUBLIC_SKIP_LOADING_DELAY: 'true'
         run: |
-          # Sync to Cloud (so API routes work)
-          vercel env rm NEXT_PUBLIC_SUPABASE_URL preview --token=$VERCEL_TOKEN --yes || true
-          printf "%s\nn\n" "$SB_URL" | vercel env add NEXT_PUBLIC_SUPABASE_URL preview --token=$VERCEL_TOKEN
-
-          vercel env rm NEXT_PUBLIC_SUPABASE_ANON_KEY preview --token=$VERCEL_TOKEN --yes || true
-          printf "%s\nn\n" "$SB_ANON" | vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY preview --token=$VERCEL_TOKEN
-
-          # Also add the skip loading delay env var for preview
+          # Add skip loading delay for preview builds
           vercel env rm NEXT_PUBLIC_SKIP_LOADING_DELAY preview --token=$VERCEL_TOKEN --yes || true
           printf "%s\nn\n" "true" | vercel env add NEXT_PUBLIC_SKIP_LOADING_DELAY preview --token=$VERCEL_TOKEN
 
@@ -172,10 +108,8 @@ jobs:
             echo "NEXT_PUBLIC_SKIP_LOADING_DELAY=true" >> .vercel/.env.preview.local
           fi
 
-          # Build (Now finds the keys in .env.local because we added them LAST)
+          # Build and Deploy (Supabase env vars already configured in Vercel)
           vercel build --token=$VERCEL_TOKEN
-
-          # Deploy
           vercel deploy --prebuilt --token=$VERCEL_TOKEN > deployment-url.txt
 
           URL=$(cat deployment-url.txt)
@@ -256,43 +190,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 1. NEW: Download the keys (Restores the missing variables for tests)
-      - name: Download Env Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: supabase-env
-          path: .
-
-      # 2. Load keys so they are available in the 'env' block below
-      - name: Load Dotenv
-        id: load-env
-        run: |
-          # Create a clean version (strip \r) just to be safe
-          tr -d '\r' < .env > .env.clean
-          set -a
-          . ./.env.clean
-          set +a
-          echo "sb_url=$NEXT_PUBLIC_SUPABASE_URL" >> $GITHUB_OUTPUT
-          echo "sb_anon=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> $GITHUB_OUTPUT
-
       - name: Run Playwright
         env:
-          # --- THE FIX FOR "CONNECTION REFUSED" ---
-          # This forces Playwright to ignore 'localhost:3000' and use the live site
+          # Use the deployed preview URL
           PLAYWRIGHT_TEST_BASE_URL: ${{ needs.deploy-testing.outputs.preview_url }}
-
-          # For compatibility, in case your config reads this specifically
           BASE_URL: ${{ needs.deploy-testing.outputs.preview_url }}
-
           HOME: /root
-
-          # --- THE FIX FOR MISSING KEYS ---
-          # We now pull these from the step above, not the 'needs' block
-          NEXT_PUBLIC_SUPABASE_URL: ${{ steps.load-env.outputs.sb_url }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ steps.load-env.outputs.sb_anon }}
-
-          # --- SKIP LOADING DELAY FOR TESTS ---
-          # The frontend has a 12s minimum loading time for UX, skip it in tests
+          # Skip loading delay for tests
           NEXT_PUBLIC_SKIP_LOADING_DELAY: 'true'
         run: npx playwright test
 
@@ -353,14 +257,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. NEW: Download the keys (Critical for the build)
-      - name: Download Env Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: supabase-env
-          path: .
-
-      # 2. Create Rollback Tag (Unchanged)
+      # 1. Create Rollback Tag
       - name: Create Backup Tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -368,7 +265,7 @@ jobs:
           TAG="prod-backup-$(date +'%Y-%m-%d-%H%M')"
           gh release create "$TAG" --generate-notes --title "Prod Deployment $TAG"
 
-      # 3. Promote Vercel (FIXED: Injection + Build)
+      # 2. Promote Vercel (using env vars already configured in Vercel)
       - name: Promote Vercel
         if: ${{ needs.provision-stack.outputs.fe_provider == 'vercel' }}
         env:
@@ -377,39 +274,14 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.PROJECT_ID }}
           PROJECT_NAME: ${{ needs.provision-stack.outputs.project_name }}
         run: |
-          # A. Install CLI
+          # Install CLI
           npm install --global vercel@latest
 
-          # B. Link & Pull (Creates the priority file with empty keys)
+          # Link & Pull
           vercel link --yes --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID --project=$PROJECT_NAME
           vercel pull --yes --environment=production --token=$VERCEL_TOKEN
 
-          # C. INJECT KEYS (The Fix)
-          echo "🧹 Cleaning and injecting keys into Production..."
-          
-          # Clean invisible characters
-          tr -d '\r' < .env > .env.clean
-          KEYS=$(cat .env.clean)
-          
-          # Inject into Vercel's production config file (This overrides Vercel's empty defaults)
-          echo "" >> .vercel/.env.production.local
-          echo "$KEYS" >> .vercel/.env.production.local
-
-          # Load keys into shell for the sync step below
-          set -a
-          . ./.env.clean
-          set +a
-
-          # D. Sync Keys to Cloud (Production Environment)
-          # We update the cloud vars so API routes work for users
-          vercel env rm NEXT_PUBLIC_SUPABASE_URL production --token=$VERCEL_TOKEN --yes || true
-          printf "%s\nn\n" "$NEXT_PUBLIC_SUPABASE_URL" | vercel env add NEXT_PUBLIC_SUPABASE_URL production --token=$VERCEL_TOKEN
-
-          vercel env rm NEXT_PUBLIC_SUPABASE_ANON_KEY production --token=$VERCEL_TOKEN --yes || true
-          printf "%s\nn\n" "$NEXT_PUBLIC_SUPABASE_ANON_KEY" | vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production --token=$VERCEL_TOKEN
-
-          # E. Build & Deploy
-          # Now that keys are injected, this build will succeed
+          # Build & Deploy (Supabase env vars already configured in Vercel)
           vercel build --prod --token=$VERCEL_TOKEN
           vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
 
