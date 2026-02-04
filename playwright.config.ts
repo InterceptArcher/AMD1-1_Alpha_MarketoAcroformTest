@@ -11,6 +11,7 @@ export default defineConfig({
     '**/api-personalize.spec.ts',   // Tests for old /api/personalize endpoint
     '**/unit/**',                   // Unit tests for old API structure
     '**/chaos-security.spec.ts',    // Depends on old form structure
+    '**/email-form.spec.ts',        // Tests for old form with different data-testids
   ],
   /* Run tests in files in parallel */
   fullyParallel: true,
