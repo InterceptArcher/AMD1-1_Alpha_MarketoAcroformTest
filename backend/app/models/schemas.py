@@ -28,6 +28,10 @@ class EnrichmentRequest(BaseModel):
     persona: Optional[str] = Field(None, description="User's specific role (ceo, cto, cfo, ciso, vp_engineering, it_manager, etc.)")
     industry: Optional[str] = Field(None, description="User's industry (technology, financial_services, healthcare, manufacturing, etc.)")
     cta: Optional[str] = Field(None, description="Campaign CTA context")
+    # New fields for executive review (AMD 2-page assessment)
+    itEnvironment: Optional[str] = Field(None, description="IT environment stage (traditional, modernizing, modern)")
+    businessPriority: Optional[str] = Field(None, description="Business priority (reducing_cost, improving_performance, preparing_ai)")
+    challenge: Optional[str] = Field(None, description="Biggest challenge (legacy_systems, integration_friction, resource_constraints, skills_gap, data_governance)")
     # Cache control
     force_refresh: Optional[bool] = Field(False, description="Force re-enrichment even if data exists")
 
@@ -86,6 +90,39 @@ class PersonalizationContent(BaseModel):
     """
     intro_hook: str = Field(..., description="1-2 sentence personalized introduction")
     cta: str = Field(..., description="Call-to-action tailored to buyer stage")
+
+
+class ExecutiveReviewAdvantage(BaseModel):
+    """Single advantage item for executive review."""
+    headline: str = Field(..., description="4-8 word headline")
+    description: str = Field(..., description="One sentence, ~25 words")
+
+
+class ExecutiveReviewRisk(BaseModel):
+    """Single risk item for executive review."""
+    headline: str = Field(..., description="4-8 word headline")
+    description: str = Field(..., description="One sentence, ~25 words")
+
+
+class ExecutiveReviewRecommendation(BaseModel):
+    """Single recommendation item for executive review."""
+    title: str = Field(..., description="Short imperative title")
+    description: str = Field(..., description="One sentence, ~25 words")
+
+
+class ExecutiveReviewContent(BaseModel):
+    """
+    Executive Review content for AMD 2-page assessment.
+    Generated based on Stage, Industry, Segment, Persona, Priority, and Challenge.
+    """
+    company_name: str
+    stage: str = Field(..., description="Observer, Challenger, or Leader")
+    stage_sidebar: str = Field(..., description="Stage-specific statistic")
+    advantages: list[ExecutiveReviewAdvantage] = Field(..., min_length=2, max_length=2)
+    risks: list[ExecutiveReviewRisk] = Field(..., min_length=2, max_length=2)
+    recommendations: list[ExecutiveReviewRecommendation] = Field(..., min_length=3, max_length=3)
+    case_study: str = Field(..., description="Selected case study: KT Cloud, Smurfit Westrock, or PQR")
+    case_study_description: str = Field(..., description="One-line case study description")
 
 
 class ProfileResponse(BaseModel):

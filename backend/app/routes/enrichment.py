@@ -24,6 +24,16 @@ from app.services.llm_service import LLMService
 from app.services.compliance import ComplianceService, validate_personalization
 from app.services.pdf_service import PDFService
 from app.services.email_service import EmailService
+from app.services.executive_review_service import (
+    ExecutiveReviewService,
+    map_company_size_to_segment,
+    map_role_to_persona,
+    map_it_environment_to_stage,
+    map_priority_display,
+    map_challenge_display,
+    map_industry_display,
+    get_stage_sidebar,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -664,6 +674,81 @@ async def deliver_ebook(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Ebook delivery failed"
+        )
+
+
+@router.post(
+    "/executive-review",
+    responses={
+        400: {"model": ErrorResponse},
+        500: {"model": ErrorResponse}
+    }
+)
+async def generate_executive_review(
+    request: EnrichmentRequest,
+) -> dict:
+    """
+    POST /rad/executive-review
+
+    Generate personalized executive review content for AMD 2-page assessment.
+    Returns structured JSON with stage, advantages, risks, recommendations, and case study.
+
+    This endpoint is separate from /enrich - it focuses only on the executive review content
+    and doesn't require enrichment APIs or database storage.
+
+    Args:
+        request: EnrichmentRequest with company info and new fields (itEnvironment, businessPriority, challenge)
+
+    Returns:
+        ExecutiveReviewContent with all personalized sections
+    """
+    try:
+        logger.info(f"Executive review generation for {request.company}")
+
+        # Map form inputs to AMD terminology
+        company_name = request.company or "Your Company"
+        industry = map_industry_display(request.industry or "technology")
+        segment = map_company_size_to_segment(request.companySize or "enterprise")
+        persona = map_role_to_persona(request.persona or "cto")
+        stage = map_it_environment_to_stage(request.itEnvironment or "modernizing")
+        priority = map_priority_display(request.businessPriority or "improving_performance")
+        challenge = map_challenge_display(request.challenge or "integration_friction")
+
+        logger.info(f"Mapped inputs: stage={stage}, segment={segment}, persona={persona}, priority={priority}, challenge={challenge}")
+
+        # Generate executive review
+        service = ExecutiveReviewService()
+        result = await service.generate_executive_review(
+            company_name=company_name,
+            industry=industry,
+            segment=segment,
+            persona=persona,
+            stage=stage,
+            priority=priority,
+            challenge=challenge,
+        )
+
+        logger.info(f"Executive review generated for {company_name}")
+
+        return {
+            "success": True,
+            "company_name": company_name,
+            "inputs": {
+                "industry": industry,
+                "segment": segment,
+                "persona": persona,
+                "stage": stage,
+                "priority": priority,
+                "challenge": challenge,
+            },
+            "executive_review": result,
+        }
+
+    except Exception as e:
+        logger.error(f"Executive review generation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Executive review generation failed: {str(e)}"
         )
 
 

@@ -87,6 +87,10 @@ function HomeContent() {
             persona: inputs.persona,
             industry: inputs.industry,
             cta: cta || 'default',
+            // New fields for executive review
+            itEnvironment: inputs.itEnvironment,
+            businessPriority: inputs.businessPriority,
+            challenge: inputs.challenge,
           }),
         });
 

@@ -11,6 +11,10 @@ export interface UserInputs {
   goal: string;
   persona: string;
   industry: string;
+  // New fields for executive review
+  itEnvironment: string;  // Maps to Stage (Observer/Challenger/Leader)
+  businessPriority: string;
+  challenge: string;
 }
 
 interface EmailConsentFormProps {
@@ -25,6 +29,32 @@ const GOAL_OPTIONS = [
   { value: 'consideration', label: 'Actively evaluating options' },
   { value: 'decision', label: 'Ready to make a decision' },
   { value: 'implementation', label: 'Already implementing, need guidance' },
+];
+
+// IT Environment options (maps to Modernization Stage)
+const IT_ENVIRONMENT_OPTIONS = [
+  { value: '', label: 'Select your IT environment...' },
+  { value: 'traditional', label: 'Traditional and legacy-heavy' },
+  { value: 'modernizing', label: 'Actively modernizing' },
+  { value: 'modern', label: 'Already modern and scalable' },
+];
+
+// Business Priority options
+const BUSINESS_PRIORITY_OPTIONS = [
+  { value: '', label: 'Select your main priority...' },
+  { value: 'reducing_cost', label: 'Reducing cost' },
+  { value: 'improving_performance', label: 'Improving workload performance' },
+  { value: 'preparing_ai', label: 'Preparing for AI adoption' },
+];
+
+// Challenge options
+const CHALLENGE_OPTIONS = [
+  { value: '', label: 'Select your biggest challenge...' },
+  { value: 'legacy_systems', label: 'Legacy systems' },
+  { value: 'integration_friction', label: 'Integration friction' },
+  { value: 'resource_constraints', label: 'Resource constraints' },
+  { value: 'skills_gap', label: 'Skills gap' },
+  { value: 'data_governance', label: 'Data governance and compliance' },
 ];
 
 // Grouped role options - Technical vs Business, then by seniority
@@ -132,6 +162,10 @@ export default function EmailConsentForm({ onSubmit, isLoading = false }: EmailC
   const [goal, setGoal] = useState('');
   const [persona, setPersona] = useState('');
   const [industry, setIndustry] = useState('');
+  // New fields for executive review
+  const [itEnvironment, setItEnvironment] = useState('');
+  const [businessPriority, setBusinessPriority] = useState('');
+  const [challenge, setChallenge] = useState('');
   const [consent, setConsent] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
@@ -161,14 +195,17 @@ export default function EmailConsentForm({ onSubmit, isLoading = false }: EmailC
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (isFormValid) {
-      onSubmit({ email, firstName, lastName, company, companySize, goal, persona, industry });
+      onSubmit({
+        email, firstName, lastName, company, companySize, goal, persona, industry,
+        itEnvironment, businessPriority, challenge
+      });
     }
   };
 
   const isEmailValid = email.length > 0 && validateEmail(email);
   const isNameValid = firstName.length > 0 && lastName.length > 0;
   const isCompanyValid = company.length > 0;
-  const isFormValid = isEmailValid && isNameValid && isCompanyValid && companySize && consent && goal && persona && industry;
+  const isFormValid = isEmailValid && isNameValid && isCompanyValid && companySize && consent && goal && persona && industry && itEnvironment && businessPriority && challenge;
 
   // Get display label for selected role
   const getSelectedRoleLabel = () => {
@@ -339,6 +376,69 @@ export default function EmailConsentForm({ onSubmit, isLoading = false }: EmailC
           className="amd-select"
         >
           {GOAL_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* IT Environment Dropdown (Stage) */}
+      <div>
+        <label htmlFor="itEnvironment" className="amd-label">
+          How would you describe your current IT environment?
+        </label>
+        <select
+          id="itEnvironment"
+          name="itEnvironment"
+          value={itEnvironment}
+          onChange={(e) => setItEnvironment(e.target.value)}
+          disabled={isLoading}
+          className="amd-select"
+        >
+          {IT_ENVIRONMENT_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Business Priority Dropdown */}
+      <div>
+        <label htmlFor="businessPriority" className="amd-label">
+          What&apos;s your main priority right now?
+        </label>
+        <select
+          id="businessPriority"
+          name="businessPriority"
+          value={businessPriority}
+          onChange={(e) => setBusinessPriority(e.target.value)}
+          disabled={isLoading}
+          className="amd-select"
+        >
+          {BUSINESS_PRIORITY_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Challenge Dropdown */}
+      <div>
+        <label htmlFor="challenge" className="amd-label">
+          What&apos;s your biggest challenge?
+        </label>
+        <select
+          id="challenge"
+          name="challenge"
+          value={challenge}
+          onChange={(e) => setChallenge(e.target.value)}
+          disabled={isLoading}
+          className="amd-select"
+        >
+          {CHALLENGE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
