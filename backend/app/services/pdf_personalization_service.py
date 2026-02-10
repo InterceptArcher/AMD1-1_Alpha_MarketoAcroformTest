@@ -191,8 +191,14 @@ def fill_personalization_fields(
     case_study_framing = personalized_content.get("case_study_framing", "")
     field_values[case_study_field] = case_study_framing
 
-    # Fill the form fields
-    writer.update_page_form_field_values(writer.pages[0], field_values)
+    # Fill form fields on ALL pages (fields are on pages 0, 10, 11, 12, 13, 15)
+    # update_page_form_field_values needs to be called for each page with fields
+    for page in writer.pages:
+        writer.update_page_form_field_values(page, field_values)
+
+    # Set NeedAppearances flag to ensure PDF readers render the field content
+    if "/AcroForm" in writer._root_object:
+        writer._root_object["/AcroForm"][pypdf.generic.NameObject("/NeedAppearances")] = pypdf.generic.BooleanObject(True)
 
     # Write to bytes
     output = io.BytesIO()
