@@ -179,151 +179,307 @@ def select_case_study(stage: str, priority: str, industry: str) -> tuple[str, st
 # FEW-SHOT EXAMPLES
 # =============================================================================
 
+# Multiple examples per stage for variety in few-shot prompting
+FEW_SHOT_EXAMPLES_POOL = {
+    "Observer": [
+        {
+            "profile": {
+                "company": "AECOM",
+                "industry": "AEC",
+                "segment": "Enterprise",
+                "persona": "ITDM",
+                "stage": "Observer",
+                "priority": "Reducing cost",
+                "challenge": "Legacy systems"
+            },
+            "output": {
+                "advantages": [
+                    {
+                        "headline": "Cost savings from reducing legacy system overhead",
+                        "description": "Retiring aging on-prem systems lowers operating costs and reduces the maintenance burden across AECOM's globally distributed project teams."
+                    },
+                    {
+                        "headline": "Efficiency gains through basic standardization",
+                        "description": "Unifying fragmented BIM, CAD, and project data environments creates quick workflow efficiencies without requiring major architectural change."
+                    }
+                ],
+                "risks": [
+                    {
+                        "headline": "High total cost of ownership from legacy infrastructure",
+                        "description": "Running large, outdated systems at enterprise scale drives rising support, licensing, and hardware costs that conflict with cost-reduction goals."
+                    },
+                    {
+                        "headline": "Integration gaps that add avoidable project costs",
+                        "description": "Siloed tools and limited interoperability across field, design, and ERP systems increase rework risk and make secure integration harder for IT."
+                    }
+                ],
+                "recommendations": [
+                    {
+                        "title": "Modernize high-impact legacy workloads first",
+                        "description": "Target the most cost-intensive on-prem systems, such as storage and compute tied to BIM and CAD, to reduce maintenance overhead and improve stability for distributed project teams."
+                    },
+                    {
+                        "title": "Standardize core infrastructure to reduce fragmentation",
+                        "description": "Adopt consistent tooling and platform standards across regions to lower integration effort for ITDM teams and eliminate duplicated spend across project sites."
+                    },
+                    {
+                        "title": "Build a scalable foundation for future AI workloads",
+                        "description": "Upgrade underlying compute and storage so the organization can support emerging AI-driven design and planning tools without incurring higher costs from repeated rework."
+                    }
+                ],
+                "case_study": "Smurfit Westrock"
+            }
+        },
+        {
+            "profile": {
+                "company": "Caterpillar",
+                "industry": "Manufacturing",
+                "segment": "Enterprise",
+                "persona": "BDM",
+                "stage": "Observer",
+                "priority": "Reducing cost",
+                "challenge": "Resource constraints"
+            },
+            "output": {
+                "advantages": [
+                    {
+                        "headline": "Lower operational costs through infrastructure consolidation",
+                        "description": "Caterpillar can reduce spending on redundant systems by consolidating manufacturing and supply chain platforms onto modern, efficient infrastructure."
+                    },
+                    {
+                        "headline": "Better resource utilization across global operations",
+                        "description": "Standardizing compute and storage environments helps the organization do more with existing resources while reducing waste across facilities."
+                    }
+                ],
+                "risks": [
+                    {
+                        "headline": "Resource constraints limit ability to modernize effectively",
+                        "description": "Without adequate budget and staff allocation, modernization efforts will stall and the company will continue paying premium costs for aging systems."
+                    },
+                    {
+                        "headline": "Competitors gain efficiency advantages with modern platforms",
+                        "description": "Manufacturing rivals investing in updated infrastructure can produce at lower cost and respond faster to market demands than the organization."
+                    }
+                ],
+                "recommendations": [
+                    {
+                        "title": "Identify quick-win consolidation opportunities",
+                        "description": "Focus initial modernization on redundant systems where consolidation delivers immediate cost savings without requiring major capital investment or staff expansion."
+                    },
+                    {
+                        "title": "Prioritize workloads with highest cost-to-value ratio",
+                        "description": "Target manufacturing execution and supply chain systems that consume disproportionate resources relative to their business value for early modernization."
+                    },
+                    {
+                        "title": "Build phased roadmap aligned with budget cycles",
+                        "description": "Create a multi-year modernization plan that spreads investment across fiscal periods to work within existing resource constraints while maintaining momentum."
+                    }
+                ],
+                "case_study": "Smurfit Westrock"
+            }
+        }
+    ],
+    "Challenger": [
+        {
+            "profile": {
+                "company": "Target",
+                "industry": "Retail",
+                "segment": "Enterprise",
+                "persona": "BDM",
+                "stage": "Challenger",
+                "priority": "Improving workload performance",
+                "challenge": "Integration friction"
+            },
+            "output": {
+                "advantages": [
+                    {
+                        "headline": "Performance gains from upgrading core systems",
+                        "description": "Modernizing high-volume retail workloads improves responsiveness across POS, ecommerce, and supply chain operations at Target."
+                    },
+                    {
+                        "headline": "Faster throughput by reducing integration friction",
+                        "description": "Improving data flow between merchandising, inventory, and digital platforms enables more consistent performance for customer-facing processes."
+                    }
+                ],
+                "risks": [
+                    {
+                        "headline": "Persistent slowdowns from integration bottlenecks",
+                        "description": "If integration issues remain unresolved, performance bottlenecks will continue to affect revenue, customer experience, and store operations."
+                    },
+                    {
+                        "headline": "Competitors advance with more unified retail platforms",
+                        "description": "Delays in improving system performance allow faster, better-integrated retailers to gain an advantage in speed and reliability."
+                    }
+                ],
+                "recommendations": [
+                    {
+                        "title": "Prioritize performance upgrades for high-volume systems",
+                        "description": "Focus modernization on the transactional workloads that power POS, ecommerce, and inventory to improve speed and reduce friction during peak demand."
+                    },
+                    {
+                        "title": "Strengthen integration across core retail platforms",
+                        "description": "Improve data consistency and flow between store, digital, and supply chain systems to eliminate performance delays that impact customer experience."
+                    },
+                    {
+                        "title": "Adopt scalable infrastructure for unified commerce",
+                        "description": "Move toward flexible compute and storage environments to handle growing performance demands across omnichannel operations without added complexity."
+                    }
+                ],
+                "case_study": "KT Cloud"
+            }
+        },
+        {
+            "profile": {
+                "company": "Allbirds",
+                "industry": "Retail",
+                "segment": "Mid-Market",
+                "persona": "ITDM",
+                "stage": "Challenger",
+                "priority": "Preparing for AI adoption",
+                "challenge": "Skills gap"
+            },
+            "output": {
+                "advantages": [
+                    {
+                        "headline": "AI-ready infrastructure accelerates competitive positioning",
+                        "description": "Allbirds can leverage modern compute platforms to deploy AI-driven personalization and demand forecasting ahead of larger but slower-moving competitors."
+                    },
+                    {
+                        "headline": "Streamlined systems reduce complexity for lean teams",
+                        "description": "Consolidated, well-integrated infrastructure allows the IT team to manage AI workloads effectively without requiring significant headcount expansion."
+                    }
+                ],
+                "risks": [
+                    {
+                        "headline": "Skills gap delays AI implementation timelines",
+                        "description": "Without specialized AI and ML expertise, the organization may struggle to operationalize advanced analytics and lose ground to better-resourced competitors."
+                    },
+                    {
+                        "headline": "Rapid retail AI adoption raises competitive pressure",
+                        "description": "Competitors deploying AI for inventory optimization and customer experience will capture market share while the company builds internal capabilities."
+                    }
+                ],
+                "recommendations": [
+                    {
+                        "title": "Deploy managed AI services to bridge skills gap",
+                        "description": "Adopt cloud-based AI platforms that reduce the technical expertise required to implement machine learning for demand forecasting and personalization."
+                    },
+                    {
+                        "title": "Modernize data infrastructure for AI readiness",
+                        "description": "Upgrade data pipelines and storage to support the volume and velocity requirements of AI workloads across ecommerce and supply chain systems."
+                    },
+                    {
+                        "title": "Build targeted AI expertise through focused hiring",
+                        "description": "Prioritize recruiting for specific AI roles that address the highest-value use cases rather than attempting broad capability building across all areas."
+                    }
+                ],
+                "case_study": "KT Cloud"
+            }
+        }
+    ],
+    "Leader": [
+        {
+            "profile": {
+                "company": "HCA Healthcare",
+                "industry": "Healthcare",
+                "segment": "Enterprise",
+                "persona": "ITDM",
+                "stage": "Leader",
+                "priority": "Preparing for AI adoption",
+                "challenge": "Data governance and compliance"
+            },
+            "output": {
+                "advantages": [
+                    {
+                        "headline": "Stronger readiness for advanced AI workloads",
+                        "description": "HCA's modern, scalable infrastructure gives IT teams the foundation to support clinical AI models that require high performance and reliable data access at enterprise scale."
+                    },
+                    {
+                        "headline": "Tighter governance accelerates compliant AI adoption",
+                        "description": "With established data controls across EHR, imaging, and operational systems, the organization can evaluate and deploy AI use cases confidently within strict regulatory boundaries."
+                    }
+                ],
+                "risks": [
+                    {
+                        "headline": "Data governance gaps threaten AI accuracy and safety",
+                        "description": "If interoperability or data quality issues persist across clinical and administrative systems, AI models may underperform or increase compliance risk for IT."
+                    },
+                    {
+                        "headline": "Regulatory complexity can slow enterprise AI deployment",
+                        "description": "Highly regulated environments like healthcare require rigorous validation and documentation, which may extend timelines to operationalize AI at scale."
+                    }
+                ],
+                "recommendations": [
+                    {
+                        "title": "Strengthen data foundations for clinical AI",
+                        "description": "Improve data quality and interoperability across EHR, imaging, and operational systems to ensure AI models are accurate, reliable, and compliant."
+                    },
+                    {
+                        "title": "Expand governance frameworks for safe AI use",
+                        "description": "Enhance validation, documentation, and audit controls so IT teams can deploy AI tools that meet strict healthcare regulatory requirements."
+                    },
+                    {
+                        "title": "Scale infrastructure for high-performance AI workloads",
+                        "description": "Increase compute and storage capacity to run demanding AI models consistently across clinical and administrative environments."
+                    }
+                ],
+                "case_study": "PQR"
+            }
+        },
+        {
+            "profile": {
+                "company": "JPMorgan Chase",
+                "industry": "Financial Services",
+                "segment": "Enterprise",
+                "persona": "BDM",
+                "stage": "Leader",
+                "priority": "Improving workload performance",
+                "challenge": "Data governance and compliance"
+            },
+            "output": {
+                "advantages": [
+                    {
+                        "headline": "Performance optimization drives competitive trading advantages",
+                        "description": "JPMorgan Chase can leverage optimized infrastructure to execute transactions faster and more reliably than competitors in latency-sensitive markets."
+                    },
+                    {
+                        "headline": "Strong governance enables compliant innovation at scale",
+                        "description": "Mature data controls and audit capabilities allow the organization to deploy new trading and analytics systems while maintaining regulatory compliance."
+                    }
+                ],
+                "risks": [
+                    {
+                        "headline": "Compliance overhead may constrain performance gains",
+                        "description": "If governance requirements add latency or complexity to critical trading systems, the company may not fully realize performance optimization benefits."
+                    },
+                    {
+                        "headline": "Fintech competitors move faster with fewer constraints",
+                        "description": "Newer financial technology firms with lighter regulatory burdens can iterate and deploy performance improvements more rapidly than established institutions."
+                    }
+                ],
+                "recommendations": [
+                    {
+                        "title": "Optimize high-frequency trading infrastructure",
+                        "description": "Focus performance improvements on the systems that directly impact revenue generation and competitive positioning in time-sensitive financial markets."
+                    },
+                    {
+                        "title": "Streamline compliance without sacrificing controls",
+                        "description": "Implement automated governance and audit capabilities that maintain regulatory compliance while reducing the performance overhead of manual processes."
+                    },
+                    {
+                        "title": "Deploy AI for real-time risk and fraud detection",
+                        "description": "Leverage optimized compute infrastructure to run advanced AI models that improve risk management and fraud prevention without adding transaction latency."
+                    }
+                ],
+                "case_study": "PQR"
+            }
+        }
+    ]
+}
+
+# Default to first example for each stage (maintains backward compatibility)
 FEW_SHOT_EXAMPLES = {
-    "Observer": {
-        "profile": {
-            "company": "AECOM",
-            "industry": "AEC",
-            "segment": "Enterprise",
-            "persona": "ITDM",
-            "stage": "Observer",
-            "priority": "Reducing cost",
-            "challenge": "Legacy systems"
-        },
-        "output": {
-            "advantages": [
-                {
-                    "headline": "Cost savings from reducing legacy system overhead",
-                    "description": "Retiring aging on-prem systems lowers operating costs and reduces the maintenance burden across AECOM's globally distributed project teams."
-                },
-                {
-                    "headline": "Efficiency gains through basic standardization",
-                    "description": "Unifying fragmented BIM, CAD, and project data environments creates quick workflow efficiencies without requiring major architectural change."
-                }
-            ],
-            "risks": [
-                {
-                    "headline": "High total cost of ownership from legacy infrastructure",
-                    "description": "Running large, outdated systems at enterprise scale drives rising support, licensing, and hardware costs that conflict with cost-reduction goals."
-                },
-                {
-                    "headline": "Integration gaps that add avoidable project costs",
-                    "description": "Siloed tools and limited interoperability across field, design, and ERP systems increase rework risk and make secure integration harder for IT."
-                }
-            ],
-            "recommendations": [
-                {
-                    "title": "Modernize high-impact legacy workloads first",
-                    "description": "Target the most cost-intensive on-prem systems, such as storage and compute tied to BIM and CAD, to reduce maintenance overhead and improve stability for distributed project teams."
-                },
-                {
-                    "title": "Standardize core infrastructure to reduce fragmentation",
-                    "description": "Adopt consistent tooling and platform standards across regions to lower integration effort for ITDM teams and eliminate duplicated spend across project sites."
-                },
-                {
-                    "title": "Build a scalable foundation for future AI workloads",
-                    "description": "Upgrade underlying compute and storage so the organization can support emerging AI-driven design and planning tools without incurring higher costs from repeated rework."
-                }
-            ],
-            "case_study": "Smurfit Westrock"
-        }
-    },
-    "Challenger": {
-        "profile": {
-            "company": "Target",
-            "industry": "Retail",
-            "segment": "Enterprise",
-            "persona": "BDM",
-            "stage": "Challenger",
-            "priority": "Improving workload performance",
-            "challenge": "Integration friction"
-        },
-        "output": {
-            "advantages": [
-                {
-                    "headline": "Performance gains from upgrading core systems",
-                    "description": "Modernizing high-volume retail workloads improves responsiveness across POS, ecommerce, and supply chain operations."
-                },
-                {
-                    "headline": "Faster throughput by reducing integration friction",
-                    "description": "Improving data flow between merchandising, inventory, and digital platforms enables more consistent performance for customer-facing processes."
-                }
-            ],
-            "risks": [
-                {
-                    "headline": "Persistent slowdowns from legacy system connections",
-                    "description": "If integration issues remain unresolved, performance bottlenecks will continue to affect revenue, customer experience, and store operations."
-                },
-                {
-                    "headline": "Competitors advance with more unified retail platforms",
-                    "description": "Delays in improving system performance allow faster, better-integrated retailers to gain an advantage in speed and reliability."
-                }
-            ],
-            "recommendations": [
-                {
-                    "title": "Prioritize performance upgrades for high-volume retail systems",
-                    "description": "Focus modernization on the transactional workloads that power POS, ecommerce, and inventory to improve speed and reduce friction during peak demand."
-                },
-                {
-                    "title": "Strengthen integration across core retail platforms",
-                    "description": "Improve data consistency and flow between store, digital, and supply chain systems to eliminate performance delays that impact customer experience and revenue."
-                },
-                {
-                    "title": "Adopt scalable infrastructure to support unified commerce",
-                    "description": "Move toward more flexible compute and storage environments so Target can handle growing performance demands across omnichannel operations without added complexity."
-                }
-            ],
-            "case_study": "KT Cloud"
-        }
-    },
-    "Leader": {
-        "profile": {
-            "company": "HCA Healthcare",
-            "industry": "Healthcare",
-            "segment": "Enterprise",
-            "persona": "ITDM",
-            "stage": "Leader",
-            "priority": "Preparing for AI adoption",
-            "challenge": "Data governance and compliance"
-        },
-        "output": {
-            "advantages": [
-                {
-                    "headline": "Stronger readiness for advanced AI workloads",
-                    "description": "HCA's modern, scalable infrastructure gives IT teams the foundation to support clinical AI models that require high performance and reliable data access at enterprise scale."
-                },
-                {
-                    "headline": "Tighter governance that accelerates compliant AI adoption",
-                    "description": "With established data controls across EHR, imaging, and operational systems, HCA can evaluate and deploy AI use cases more confidently within strict regulatory boundaries."
-                }
-            ],
-            "risks": [
-                {
-                    "headline": "AI accuracy and safety depend on high-quality, well-governed data",
-                    "description": "If interoperability or data quality gaps persist across clinical and administrative systems, AI models may underperform or increase compliance risk for IT."
-                },
-                {
-                    "headline": "Regulatory complexity can slow enterprise AI deployment",
-                    "description": "Highly regulated environments like healthcare require rigorous validation and documentation, which may extend timelines for IT to operationalize AI at scale."
-                }
-            ],
-            "recommendations": [
-                {
-                    "title": "Strengthen data foundations for clinical AI",
-                    "description": "Improve data quality and interoperability across EHR, imaging, and operational systems to ensure AI models are accurate, reliable, and compliant."
-                },
-                {
-                    "title": "Expand governance frameworks to support safe AI use",
-                    "description": "Enhance validation, documentation, and audit controls so IT teams can deploy AI tools that meet strict healthcare regulatory requirements."
-                },
-                {
-                    "title": "Scale infrastructure to support high-performance AI workloads",
-                    "description": "Increase compute and storage capacity to run demanding AI models consistently across clinical and administrative environments."
-                }
-            ],
-            "case_study": "PQR"
-        }
-    }
+    stage: examples[0] for stage, examples in FEW_SHOT_EXAMPLES_POOL.items()
 }
 
 
@@ -368,8 +524,8 @@ class ExecutiveReviewService:
             logger.warning("No Anthropic client - returning mock executive review")
             return self._get_mock_response(company_name, stage, priority, industry)
 
-        # Get the matching few-shot example
-        example = FEW_SHOT_EXAMPLES.get(stage, FEW_SHOT_EXAMPLES["Challenger"])
+        # Get the best matching few-shot example based on stage and other inputs
+        example = self._select_best_example(stage, industry, priority, challenge)
 
         # Build the prompt
         system_prompt = self._build_system_prompt()
@@ -402,6 +558,60 @@ class ExecutiveReviewService:
             logger.error(f"Executive review generation failed: {e}")
             return self._get_mock_response(company_name, stage, priority, industry)
 
+    def _select_best_example(self, stage: str, industry: str, priority: str, challenge: str) -> dict:
+        """Select the most relevant few-shot example based on inputs."""
+        examples = FEW_SHOT_EXAMPLES_POOL.get(stage, FEW_SHOT_EXAMPLES_POOL["Challenger"])
+
+        if len(examples) == 1:
+            return examples[0]
+
+        # Score each example based on similarity to inputs
+        best_example = examples[0]
+        best_score = 0
+
+        for example in examples:
+            score = 0
+            profile = example["profile"]
+
+            # Industry match (highest weight)
+            if profile.get("industry", "").lower() == industry.lower():
+                score += 3
+            elif self._industries_similar(profile.get("industry", ""), industry):
+                score += 1
+
+            # Priority match
+            if profile.get("priority", "").lower() in priority.lower() or priority.lower() in profile.get("priority", "").lower():
+                score += 2
+
+            # Challenge match
+            if profile.get("challenge", "").lower() in challenge.lower() or challenge.lower() in profile.get("challenge", "").lower():
+                score += 2
+
+            if score > best_score:
+                best_score = score
+                best_example = example
+
+        return best_example
+
+    def _industries_similar(self, industry1: str, industry2: str) -> bool:
+        """Check if two industries are in the same category."""
+        industry_groups = [
+            {"retail", "ecommerce", "consumer"},
+            {"healthcare", "life sciences", "pharma", "medical"},
+            {"financial services", "banking", "insurance", "fintech"},
+            {"manufacturing", "industrial", "automotive"},
+            {"technology", "software", "telecommunications", "tech"},
+            {"energy", "utilities", "oil and gas"},
+        ]
+
+        i1_lower = industry1.lower()
+        i2_lower = industry2.lower()
+
+        for group in industry_groups:
+            if any(term in i1_lower for term in group) and any(term in i2_lower for term in group):
+                return True
+        return False
+
     def _build_system_prompt(self) -> str:
         """Build the system prompt with AMD content rules."""
         return """You are an expert business strategist creating personalized executive reviews for AMD's Data Center Modernization program.
@@ -420,10 +630,17 @@ COMPANY NAME RULES:
 - After first mention, use pronouns: "their environment", "the company", "the organization", "their teams"
 - Never repeat the company name across every line (this is an AI tell)
 
+PERSONALIZATION REQUIREMENTS (CRITICAL):
+You MUST incorporate ALL of these inputs into the content:
+- INDUSTRY: Reference industry-specific workloads, systems, and use cases (e.g., "EHR systems" for healthcare, "POS systems" for retail)
+- PERSONA: Tailor language for the reader (ITDM = technical infrastructure focus, BDM = business outcomes focus)
+- PRIORITY: The first advantage and first recommendation MUST directly address the stated priority
+- CHALLENGE: The first risk MUST directly reference the stated challenge and its consequences
+
 STAGE-SPECIFIC FOCUS:
-- Observer: low-lift, cost-saving steps, foundational efficiency
-- Challenger: performance, integration, scalability steps
-- Leader: governance, optimization, AI readiness steps
+- Observer: low-lift, cost-saving steps, foundational efficiency, reducing technical debt
+- Challenger: performance optimization, integration improvements, scalability, competitive positioning
+- Leader: governance, AI readiness, optimization at scale, maintaining competitive advantage
 
 OUTPUT FORMAT:
 Return valid JSON only, no markdown, no explanation. Match the exact structure shown in the example."""
@@ -440,15 +657,28 @@ Return valid JSON only, no markdown, no explanation. Match the exact structure s
         example: dict
     ) -> str:
         """Build the user prompt with few-shot example."""
+        # Get persona-specific language guidance
+        persona_guidance = {
+            "ITDM": "Focus on infrastructure, systems, technical architecture, and IT operational efficiency.",
+            "BDM": "Focus on business outcomes, revenue impact, competitive positioning, and operational results."
+        }
+
         return f"""Generate an executive review for this profile:
 
 Company: {company_name}
 Industry: {industry}
 Segment: {segment}
-Persona: {persona}
+Persona: {persona} - {persona_guidance.get(persona, persona_guidance["BDM"])}
 Stage: {stage}
 Business Priority: {priority}
 Challenge: {challenge}
+
+PERSONALIZATION CHECKLIST (you must address ALL of these):
+1. First advantage headline MUST relate to "{priority}"
+2. First risk headline MUST reference consequences of "{challenge}"
+3. Content MUST use {industry}-specific terminology and systems
+4. Language MUST be appropriate for a {persona} reader
+5. Recommendations MUST be {stage}-appropriate ({"foundational, cost-focused" if stage == "Observer" else "performance, integration-focused" if stage == "Challenger" else "optimization, AI-readiness focused"})
 
 Here is an example of excellent output for a {stage} stage company:
 
@@ -458,7 +688,9 @@ INPUT:
 OUTPUT:
 {json.dumps(example["output"], indent=2)}
 
-Now generate the executive review for {company_name}. Return ONLY valid JSON matching the output structure above."""
+Now generate the executive review for {company_name}. The content must be clearly personalized to their specific industry ({industry}), priority ({priority}), and challenge ({challenge}).
+
+Return ONLY valid JSON matching the output structure above."""
 
     def _parse_response(self, content: str, company_name: str, stage: str, priority: str, industry: str) -> dict:
         """Parse the LLM response into structured output."""
