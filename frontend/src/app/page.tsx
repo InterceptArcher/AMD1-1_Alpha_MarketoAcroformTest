@@ -5,6 +5,7 @@ import { Suspense, useState } from 'react';
 import EmailConsentForm, { UserInputs } from '@/components/EmailConsentForm';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import PersonalizedContent from '@/components/PersonalizedContent';
+import ExecutiveReviewDisplay from '@/components/ExecutiveReviewDisplay';
 
 interface PersonalizationData {
   intro_hook: string;
@@ -29,6 +30,33 @@ interface UserContext {
   goal?: string;
 }
 
+interface ExecutiveReviewData {
+  company_name: string;
+  stage: string;
+  stage_sidebar: string;
+  advantages: Array<{ headline: string; description: string }>;
+  risks: Array<{ headline: string; description: string }>;
+  recommendations: Array<{ title: string; description: string }>;
+  case_study: string;
+  case_study_description: string;
+}
+
+interface ExecutiveReviewInputs {
+  industry: string;
+  segment: string;
+  persona: string;
+  stage: string;
+  priority: string;
+  challenge: string;
+}
+
+interface ExecutiveReviewResponse {
+  success: boolean;
+  company_name: string;
+  inputs: ExecutiveReviewInputs;
+  executive_review: ExecutiveReviewData;
+}
+
 function HomeContent() {
   const searchParams = useSearchParams();
   const cta = searchParams.get('cta');
@@ -36,10 +64,12 @@ function HomeContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [userContext, setUserContext] = useState<UserContext | null>(null);
   const [personalizationData, setPersonalizationData] = useState<PersonalizationData | null>(null);
+  const [executiveReview, setExecutiveReview] = useState<ExecutiveReviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleReset = () => {
     setPersonalizationData(null);
+    setExecutiveReview(null);
     setUserContext(null);
     setError(null);
   };
@@ -72,7 +102,8 @@ function HomeContent() {
 
       // Run API calls and minimum loading time in parallel
       const apiCall = async () => {
-        const response = await fetch(`${apiUrl}/rad/enrich`, {
+        // Call the executive review endpoint
+        const response = await fetch(`${apiUrl}/rad/executive-review`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -87,7 +118,7 @@ function HomeContent() {
             persona: inputs.persona,
             industry: inputs.industry,
             cta: cta || 'default',
-            // New fields for executive review
+            // Fields for executive review generation
             itEnvironment: inputs.itEnvironment,
             businessPriority: inputs.businessPriority,
             challenge: inputs.challenge,
@@ -95,38 +126,18 @@ function HomeContent() {
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to start personalization: ${response.status}`);
+          const errorText = await response.text();
+          throw new Error(`Failed to generate executive review: ${response.status} - ${errorText}`);
         }
 
-        const profileResponse = await fetch(`${apiUrl}/rad/profile/${encodeURIComponent(inputs.email)}`);
-
-        if (!profileResponse.ok) {
-          throw new Error(`Failed to fetch profile: ${profileResponse.status}`);
-        }
-
-        return profileResponse.json();
+        return response.json();
       };
 
       // Wait for both API and minimum loading time
-      const [profileData] = await Promise.all([apiCall(), minLoadingTime]);
+      const [reviewData] = await Promise.all([apiCall(), minLoadingTime]);
 
-      // Extract enrichment data for display
-      const normalizedProfile = profileData.normalized_profile || {};
-
-      setPersonalizationData({
-        intro_hook: profileData.personalization?.intro_hook || 'Welcome!',
-        cta: profileData.personalization?.cta || 'Get started today',
-        first_name: inputs.firstName || normalizedProfile.first_name,
-        company: inputs.company || normalizedProfile.company_name,
-        title: normalizedProfile.title,
-        email: inputs.email,
-        // Enhanced data from enrichment APIs
-        employee_count: normalizedProfile.employee_count,
-        funding_stage: normalizedProfile.latest_funding_stage,
-        recent_news: normalizedProfile.recent_news?.slice(0, 3),
-        skills: normalizedProfile.skills?.slice(0, 5),
-        news_themes: normalizedProfile.news_themes?.slice(0, 3),
-      });
+      // Store the executive review response
+      setExecutiveReview(reviewData as ExecutiveReviewResponse);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -168,7 +179,7 @@ function HomeContent() {
         {/* Main Content */}
         <div className="flex-1 flex items-center justify-center px-6 py-8 lg:py-12 lg:px-12">
           <div className="w-full max-w-6xl">
-            {!personalizationData && !isLoading && (
+            {!personalizationData && !executiveReview && !isLoading && (
               <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
                 {/* Left Side - Hero */}
                 <div className="animate-fade-in-left">
@@ -278,13 +289,23 @@ function HomeContent() {
               </div>
             )}
 
-            {personalizationData && (
+            {executiveReview && (
+              <div className="max-w-4xl mx-auto animate-fade-in-scale">
+                <ExecutiveReviewDisplay
+                  data={executiveReview.executive_review}
+                  inputs={executiveReview.inputs}
+                  onReset={handleReset}
+                />
+              </div>
+            )}
+
+            {personalizationData && !executiveReview && (
               <div className="max-w-2xl mx-auto animate-fade-in-scale">
                 <PersonalizedContent data={personalizationData} error={error} onReset={handleReset} />
               </div>
             )}
 
-            {error && !personalizationData && !isLoading && (
+            {error && !personalizationData && !executiveReview && !isLoading && (
               <div className="max-w-md mx-auto amd-card p-8 border-red-500/30 bg-red-500/5 animate-fade-in-up">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
